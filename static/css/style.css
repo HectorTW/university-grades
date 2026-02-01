@@ -1,0 +1,516 @@
+/* Основные стили */
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: #f8f9fa;
+}
+
+.navbar-brand {
+    font-weight: bold;
+    font-size: 1.5rem;
+}
+
+.card {
+    border: none;
+    border-radius: 10px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    transition: transform 0.2s;
+}
+
+.card:hover {
+    transform: translateY(-2px);
+}
+
+.btn {
+    border-radius: 8px;
+    font-weight: 500;
+}
+
+.btn-primary {
+    background: linear-gradient(45deg, #007bff, #0056b3);
+    border: none;
+}
+
+.btn-success {
+    background: linear-gradient(45deg, #28a745, #1e7e34);
+    border: none;
+}
+
+.btn-warning {
+    background: linear-gradient(45deg, #ffc107, #e0a800);
+    border: none;
+}
+
+.btn-danger {
+    background: linear-gradient(45deg, #dc3545, #c82333);
+    border: none;
+}
+
+/* Стили для форм */
+.form-control {
+    border-radius: 8px;
+    border: 2px solid #e9ecef;
+    transition: border-color 0.3s;
+}
+
+.form-control:focus {
+    border-color: #007bff;
+    box-shadow: 0 0 0 0.2rem rgba(0,123,255,0.25);
+}
+
+.form-label {
+    font-weight: 600;
+    color: #495057;
+}
+
+/* Стили для таблиц */
+.table {
+    background: white;
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+
+.table thead th {
+    background-color: #343a40;
+    color: white;
+    border: none;
+    font-weight: 600;
+    padding: 12px 15px;
+    text-align: center;
+    vertical-align: middle;
+    border-bottom: 2px solid #495057;
+}
+
+.table tbody td {
+    padding: 12px 15px;
+    vertical-align: middle;
+    border-top: 1px solid #dee2e6;
+}
+
+/* Стили для оценок */
+.grade-input {
+    width: 60px;
+    text-align: center;
+}
+
+.grade-card {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 15px;
+    padding: 20px;
+    margin-bottom: 20px;
+}
+
+.grade-card h5 {
+    color: white;
+    font-weight: bold;
+}
+
+/* Стили для профиля */
+.profile-card {
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    color: white;
+    border-radius: 15px;
+    padding: 30px;
+}
+
+.profile-avatar {
+    width: 100px;
+    height: 100px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2rem;
+    margin: 0 auto 20px;
+}
+
+.profile-avatar-photo {
+    width: 100px;
+    height: 100px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 3px solid rgba(255,255,255,0.3);
+    margin: 0 auto 20px;
+}
+
+/* Стили для статистики */
+.stats-card {
+    background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+    color: white;
+    border-radius: 15px;
+    padding: 20px;
+    text-align: center;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+}
+
+.stats-number {
+    font-size: 2.5rem;
+    font-weight: bold;
+    margin-bottom: 10px;
+}
+
+/* Адаптивность */
+@media (max-width: 768px) {
+    .container {
+        padding: 0 15px;
+    }
+    
+    .card {
+        margin-bottom: 20px;
+        border-radius: 8px;
+    }
+    
+    .table-responsive {
+        border-radius: 8px;
+        font-size: 0.9rem;
+    }
+    
+    .table thead th {
+        padding: 8px 10px;
+        font-size: 0.85rem;
+    }
+    
+    .table tbody td {
+        padding: 8px 10px;
+        font-size: 0.85rem;
+    }
+    
+    .btn {
+        font-size: 0.9rem;
+        padding: 8px 12px;
+    }
+    
+    .btn-sm {
+        font-size: 0.8rem;
+        padding: 6px 10px;
+    }
+    
+    .stats-card {
+        margin-bottom: 15px;
+    }
+    
+    .stats-number {
+        font-size: 2rem;
+    }
+    
+    .navbar-brand {
+        font-size: 1.2rem;
+    }
+    
+    .card-header h4 {
+        font-size: 1.1rem;
+    }
+    
+    .card-header h5 {
+        font-size: 1rem;
+    }
+    
+    .form-control {
+        font-size: 16px; /* Предотвращает зум на iOS */
+    }
+    
+    .form-label {
+        font-size: 0.9rem;
+        font-weight: 600;
+    }
+    
+    .alert {
+        font-size: 0.9rem;
+        padding: 12px 15px;
+    }
+    
+    .badge {
+        font-size: 0.75rem;
+    }
+    
+    /* Скрываем некоторые элементы на мобильных */
+    .d-none-mobile {
+        display: none !important;
+    }
+    
+    /* Улучшаем отступы */
+    .mb-4 {
+        margin-bottom: 1.5rem !important;
+    }
+    
+    .mb-3 {
+        margin-bottom: 1rem !important;
+    }
+    
+    .p-4 {
+        padding: 1.5rem !important;
+    }
+    
+    .p-3 {
+        padding: 1rem !important;
+    }
+}
+
+@media (max-width: 576px) {
+    .container {
+        padding: 0 10px;
+    }
+    
+    .card {
+        margin-bottom: 15px;
+        border-radius: 6px;
+    }
+    
+    .table-responsive {
+        font-size: 0.8rem;
+    }
+    
+    .table thead th {
+        padding: 6px 8px;
+        font-size: 0.8rem;
+    }
+    
+    .table tbody td {
+        padding: 6px 8px;
+        font-size: 0.8rem;
+    }
+    
+    .btn {
+        font-size: 0.85rem;
+        padding: 6px 10px;
+    }
+    
+    .btn-lg {
+        font-size: 0.9rem;
+        padding: 10px 16px;
+    }
+    
+    .stats-number {
+        font-size: 1.8rem;
+    }
+    
+    .navbar-brand {
+        font-size: 1.1rem;
+    }
+    
+    .card-header h4 {
+        font-size: 1rem;
+    }
+    
+    .card-header h5 {
+        font-size: 0.95rem;
+    }
+    
+    .form-control {
+        font-size: 16px;
+        padding: 10px 12px;
+    }
+    
+    .alert {
+        font-size: 0.85rem;
+        padding: 10px 12px;
+    }
+    
+    .badge {
+        font-size: 0.7rem;
+    }
+    
+    /* Стеки колонок на очень маленьких экранах */
+    .col-md-6 {
+        margin-bottom: 1rem;
+    }
+    
+    .col-md-4 {
+        margin-bottom: 1rem;
+    }
+    
+    .col-md-3 {
+        margin-bottom: 1rem;
+    }
+    
+    .col-md-2 {
+        margin-bottom: 1rem;
+    }
+    
+    /* Мобильные иконки */
+    .fa-2x {
+        font-size: 1.5em !important;
+    }
+    
+    .fa-3x {
+        font-size: 2em !important;
+    }
+    
+    /* Мобильные заголовки */
+    .display-4 {
+        font-size: 2rem !important;
+    }
+    
+    .display-5 {
+        font-size: 1.75rem !important;
+    }
+    
+    /* Мобильные отступы */
+    .py-4 {
+        padding-top: 1.5rem !important;
+        padding-bottom: 1.5rem !important;
+    }
+    
+    .mb-4 {
+        margin-bottom: 1.5rem !important;
+    }
+    
+    .mb-5 {
+        margin-bottom: 2rem !important;
+    }
+    
+    /* Мобильные кнопки */
+    .btn-lg {
+        font-size: 1rem !important;
+        padding: 0.75rem 1.5rem !important;
+    }
+    
+    /* Мобильные карточки */
+    .card-body {
+        padding: 1rem !important;
+    }
+    
+    .p-3 {
+        padding: 1rem !important;
+    }
+    
+    .p-md-4 {
+        padding: 1rem !important;
+    }
+}
+
+/* Анимации */
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.fade-in {
+    animation: fadeIn 0.5s ease-out;
+}
+
+/* Стили для уведомлений */
+.alert {
+    border-radius: 10px;
+    border: none;
+    font-weight: 500;
+}
+
+.alert-info {
+    background: linear-gradient(45deg, #17a2b8, #138496);
+    color: white;
+}
+
+.alert-success {
+    background: linear-gradient(45deg, #28a745, #1e7e34);
+    color: white;
+}
+
+.alert-warning {
+    background: linear-gradient(45deg, #ffc107, #e0a800);
+    color: #212529;
+}
+
+.alert-danger {
+    background: linear-gradient(45deg, #dc3545, #c82333);
+    color: white;
+}
+
+/* Стили для таблиц с вертикальными разделителями */
+.table {
+    border-collapse: separate;
+    border-spacing: 0;
+}
+
+.table th,
+.table td {
+    border-right: 1px dashed #dee2e6;
+    border-bottom: 1px solid #dee2e6;
+    padding: 12px 15px;
+    vertical-align: middle;
+}
+
+.table th:last-child,
+.table td:last-child {
+    border-right: none;
+}
+
+.table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+/* Стили для заголовков таблиц */
+.table thead th {
+    background-color: #343a40;
+    color: white;
+    border: none;
+    font-weight: 600;
+    padding: 12px 15px;
+    text-align: center;
+    vertical-align: middle;
+    border-bottom: 2px solid #495057;
+    border-right: 1px dashed #495057;
+}
+
+.table thead th:last-child {
+    border-right: none;
+}
+
+/* Стили для таблиц с полосами */
+.table-striped tbody tr:nth-of-type(odd) {
+    background-color: rgba(0, 0, 0, 0.02);
+}
+
+
+/* Адаптивность для мобильных */
+@media (max-width: 768px) {
+    .table th,
+    .table td {
+        padding: 8px 10px;
+        font-size: 0.9rem;
+    }
+    
+    .table thead th {
+        padding: 8px 10px;
+        font-size: 0.85rem;
+    }
+}
+
+@media (max-width: 576px) {
+    .table th,
+    .table td {
+        padding: 6px 8px;
+        font-size: 0.8rem;
+    }
+    
+    .table thead th {
+        padding: 6px 8px;
+        font-size: 0.8rem;
+    }
+}
+
+/* Стили для карточки профиля */
+.profile-card {
+    background: linear-gradient(135deg, #ff6b9d, #ff8fab);
+    border-radius: 10px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    padding: 2rem;
+    transition: transform 0.2s;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    align-items: center;
+    height: 100%;
+    border: 1px solid #dee2e6;
+    color: white;
+}
+
+.profile-card:hover {
+    transform: translateY(-2px);
+}

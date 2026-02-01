@@ -1,0 +1,1076 @@
+{% extends "base.html" %}
+
+{% block title %}Панель работодателя - Система оценок{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-4">
+            <h2 class="mb-3 mb-md-0">
+                <i class="fas fa-briefcase me-2"></i>
+                Панель работодателя
+            </h2>
+            <div class="d-flex flex-wrap gap-2">
+                <a href="{{ url_for('employer_profile') }}" class="btn btn-info btn-sm">
+                    <i class="fas fa-building me-1 d-none d-md-inline"></i>Профиль компании
+                </a>
+                <a href="{{ url_for('employer_invitations') }}" class="btn btn-warning btn-sm">
+                    <i class="fas fa-envelope me-1 d-none d-md-inline"></i>Мои приглашения
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Статистика -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="stats-card">
+            <div class="stats-number">
+                {{ students|length }}
+            </div>
+            <div>Студентов</div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="stats-card">
+            <div class="stats-number">
+                <i class="fas fa-search"></i>
+            </div>
+            <div>Поиск талантов</div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="stats-card">
+            <div class="stats-number">
+                <i class="fas fa-handshake"></i>
+            </div>
+            <div>Приглашения</div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="stats-card">
+            <div class="stats-number">
+                <i class="fas fa-star"></i>
+            </div>
+            <div>Лучшие кандидаты</div>
+        </div>
+    </div>
+</div>
+
+<!-- Фильтры и сортировка -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-filter me-2"></i>
+                    Фильтры и сортировка
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-3">
+                        <label for="study_form_filter" class="form-label">Форма обучения</label>
+                        <select class="form-select" id="study_form_filter">
+                            <option value="">Все формы</option>
+                            <option value="очная">Очная</option>
+                            <option value="заочная">Заочная</option>
+                            <option value="дистанционная">Дистанционная</option>
+                        </select>
+                    </div>
+                    
+                    <div class="col-md-3">
+                        <label for="direction_filter" class="form-label">Направление</label>
+                        <select class="form-select" id="direction_filter">
+                            <option value="">Все направления</option>
+                            <!-- Опции будут добавлены через JavaScript -->
+                        </select>
+                    </div>
+                    
+                    <div class="col-md-3">
+                        <label for="sort_by" class="form-label">Сортировка</label>
+                        <select class="form-select" id="sort_by">
+                            <option value="name">По имени</option>
+                            {% for ch in characteristics_list %}
+                            <option value="char_{{ ch.id }}">По {{ ch.name }}</option>
+                            {% endfor %}
+                            <option value="birth_date">По дате рождения</option>
+                        </select>
+                    </div>
+                    
+                    <div class="col-md-3">
+                        <label for="view_mode" class="form-label">Вид отображения</label>
+                        <div class="btn-group w-100" role="group">
+                            <input type="radio" class="btn-check" name="view_mode" id="card_view" value="cards" checked>
+                            <label class="btn btn-outline-primary" for="card_view">
+                                <i class="fas fa-th-large"></i> Карточки
+                            </label>
+                            
+                            <input type="radio" class="btn-check" name="view_mode" id="table_view_radio" value="table">
+                            <label class="btn btn-outline-primary" for="table_view_radio">
+                                <i class="fas fa-table"></i> Таблица
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Список студентов -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-users me-2"></i>
+                    Студенты
+                </h5>
+            </div>
+            <div class="card-body">
+                <!-- Вид карточками -->
+                <div id="cards_view">
+                    <div class="row" id="students_cards">
+                        <!-- Карточки будут добавлены через JavaScript -->
+                    </div>
+                </div>
+                
+                <!-- Вид таблицей -->
+                <div id="table_view" style="display: none;">
+                    <div class="table-responsive">
+                        <table class="table table-hover" id="students_table">
+                            <thead>
+                                <tr>
+                                    <th>Фото</th>
+                                    <th>Имя / Общая информация</th>
+                                    <th>Характеристики</th>
+                                    <th>Жетоны</th>
+                                    <th>Действия</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- Строки будут добавлены через JavaScript -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Портал для увеличенного аватара (рендерится поверх всего) -->
+<div id="avatar-preview-portal" class="avatar-preview-portal" aria-hidden="true"></div>
+
+<!-- Модальное окно для отправки приглашения -->
+<div class="modal fade" id="invitationModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Отправить приглашение</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="invitationForm">
+                    <input type="hidden" id="student_id" name="student_id">
+                    
+                    <div class="mb-3">
+                        <label for="position" class="form-label">Должность *</label>
+                        <input type="text" class="form-control" id="position" name="position" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="message" class="form-label">Сообщение</label>
+                        <textarea class="form-control" id="message" name="message" rows="3" 
+                                  placeholder="Дополнительная информация о вакансии или компании"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                <button type="button" class="btn btn-primary" onclick="sendInvitation()">Отправить приглашение</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<!-- Скрытые данные для JavaScript -->
+<script type="application/json" id="students-data">{{ students_for_js|tojson|safe }}</script>
+
+<script>
+// Получение данных студентов
+const studentsDataElement = document.getElementById('students-data');
+let currentStudents = [];
+try {
+    currentStudents = JSON.parse(studentsDataElement.textContent) || [];
+} catch (e) {
+    console.error('Ошибка парсинга данных студентов:', e);
+    currentStudents = [];
+}
+
+// Экранирование пользовательских данных перед вставкой в HTML (защита от DOM XSS)
+function escapeHtml(value) {
+    return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function openInvitationModal(studentId, studentName) {
+    document.getElementById('student_id').value = studentId;
+    document.querySelector('#invitationModal .modal-title').textContent = `Отправить приглашение ${studentName}`;
+    new bootstrap.Modal(document.getElementById('invitationModal')).show();
+}
+
+function sendInvitation() {
+    const studentIdVal = document.getElementById('student_id').value;
+    const formData = {
+        student_id: parseInt(studentIdVal, 10),
+        position: document.getElementById('position').value.trim(),
+        message: document.getElementById('message').value.trim() || ''
+    };
+
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+    const headers = {
+        'Content-Type': 'application/json',
+    };
+    if (csrfToken) {
+        headers['X-CSRFToken'] = csrfToken;
+    }
+
+    fetch('/employer/send_invitation', {
+        method: 'POST',
+        headers: headers,
+        body: JSON.stringify(formData),
+        credentials: 'same-origin'
+    })
+    .then(response => {
+        if (!response.ok) {
+            return response.json().catch(() => { throw new Error('Ошибка сервера'); });
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.success) {
+            alert('Приглашение успешно отправлено!');
+            bootstrap.Modal.getInstance(document.getElementById('invitationModal')).hide();
+            document.getElementById('invitationForm').reset();
+        } else {
+            alert('Ошибка: ' + (data.message || 'Неизвестная ошибка'));
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Произошла ошибка при отправке приглашения');
+    });
+}
+
+// Новая система фильтрации и сортировки
+document.addEventListener('DOMContentLoaded', function() {
+    const studyFormFilter = document.getElementById('study_form_filter');
+    const directionFilter = document.getElementById('direction_filter');
+    const sortBy = document.getElementById('sort_by');
+    const viewModeRadios = document.querySelectorAll('input[name="view_mode"]');
+    
+    // Сохраняем исходные данные студентов
+    let originalStudents = [...currentStudents];
+    let filteredStudents = [...currentStudents];
+    
+    // Функция для отображения студентов
+    function displayStudents(students) {
+        const viewMode = document.querySelector('input[name="view_mode"]:checked').value;
+        
+        if (viewMode === 'cards') {
+            displayCards(students);
+        } else {
+            displayTable(students);
+        }
+    }
+    
+    // Отображение карточек
+    function displayCards(students) {
+        const container = document.getElementById('students_cards');
+        container.innerHTML = '';
+        
+        students.forEach(student => {
+            const card = createCardElement(student);
+            container.appendChild(card);
+        });
+    }
+    
+    // Отображение таблицы
+    function displayTable(students) {
+        const tbody = document.querySelector('#students_table tbody');
+        if (!tbody) {
+            console.error('Элемент tbody не найден!');
+            return;
+        }
+        tbody.innerHTML = '';
+        
+        students.forEach(student => {
+            const row = createRowElement(student);
+            tbody.appendChild(row);
+        });
+    }
+    
+    // Создание элемента карточки
+    function createCardElement(student) {
+        const card = document.createElement('div');
+        card.className = 'col-md-4 mb-3 student-card';
+        card.dataset.studentId = student.id;
+        const studentNameSafe = escapeHtml(student.name);
+        
+        const age = student.birth_date ? 
+            Math.floor((new Date() - new Date(student.birth_date)) / (365.25 * 24 * 60 * 60 * 1000)) : '-';
+        
+        const avatarSrc = student.photo_filename ? `/uploads/${encodeURIComponent(student.photo_filename)}` : '';
+        const photoHtml = student.photo_filename
+            ? `<div class="avatar-hover-wrap" data-avatar-type="photo" data-avatar-src="${avatarSrc}">
+                    <img src="${avatarSrc}" alt="Фото студента" class="student-photo">
+               </div>`
+            : `<div class="avatar-hover-wrap" data-avatar-type="default" data-avatar-src="">
+                    <div class="student-photo-placeholder">
+                        <i class="fas fa-user fa-2x text-muted"></i>
+                    </div>
+               </div>`;
+        
+        // Определяем стили и кнопку в зависимости от статуса приглашения
+        const cardClass = student.already_invited ? 'card h-100 already-invited' : 'card h-100';
+        const buttonHtml = student.already_invited ? 
+            `<button class="btn btn-secondary btn-sm mt-3" disabled>
+                <i class="fas fa-check me-1"></i>Приглашение отправлено
+            </button>` :
+            `<button class="btn btn-primary btn-sm mt-3 invite-btn" data-student-id="${student.id}" data-student-name="${encodeURIComponent(student.name || '')}">
+                <i class="fas fa-envelope me-1"></i>Пригласить
+            </button>`;
+        
+        const charsHtml = (student.characteristics || []).map(c => {
+            const v = Math.max(0, Math.min(100, Number(c.value) || 0));
+            return `
+                <div class="student-char">
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <small class="text-muted">${escapeHtml(c.name)}</small>
+                        <small class="text-muted">${v.toFixed(0)}%</small>
+                    </div>
+                    <div class="progress" style="height: 8px;">
+                        <div class="progress-bar bg-primary" role="progressbar" style="width: ${v}%" aria-valuenow="${v}" aria-valuemin="0" aria-valuemax="100"></div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+        const tokenTypes = ['Упорство', 'Трудолюбие', 'Понимание', 'Подготовка', 'Креатив', 'Скорость'];
+        const tokensHtml = tokenTypes.map(t => {
+            const cnt = (student.token_counts && Number(student.token_counts[t])) ? Number(student.token_counts[t]) : 0;
+            const src = `/static/icons/${encodeURIComponent(t)}.png`;
+            return `
+                <div class="student-token-item ${cnt > 0 ? 'has' : 'zero'}" title="${t}">
+                    <img class="student-token-icon" src="${src}" alt="${t}">
+                    <div class="student-token-count">×${cnt}</div>
+                </div>
+            `;
+        }).join('');
+        card.innerHTML = `
+            <div class="${cardClass} student-card-v2">
+                <div class="card-body">
+                    <div class="student-card-title">
+                        <h5 class="mb-0">${studentNameSafe}</h5>
+                    </div>
+
+                    <div class="student-card-top mt-3">
+                        <div class="student-card-avatar">
+                            ${photoHtml}
+                        </div>
+                        <div class="student-card-chars">
+                            ${charsHtml || `<div class="text-muted small">Характеристики пока не рассчитаны</div>`}
+                        </div>
+                    </div>
+
+                    <div class="student-card-info mt-3">
+                        <div class="row g-2">
+                            <div class="col-6">
+                                <div class="text-muted small">Форма обучения</div>
+                                <div>${escapeHtml(student.study_form || 'Не указана')}</div>
+                            </div>
+                            <div class="col-6">
+                                <div class="text-muted small">Возраст</div>
+                                <div>${age} лет</div>
+                            </div>
+                            <div class="col-12">
+                                <div><span class="text-muted small">Направление:</span> <span>${escapeHtml(student.direction || 'Не указано')}</span></div>
+                            </div>
+                            <div class="col-12">
+                                <div><span class="text-muted small">Специализация:</span> <span>${escapeHtml(student.specialization || 'Не указана')}</span></div>
+                            </div>
+                            <div class="col-12">
+                                <div class="text-muted small mb-1">Жетоны</div>
+                                <div class="student-tokens-grid">
+                                    ${tokensHtml}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="student-card-actions mt-3">
+                        ${buttonHtml}
+                    </div>
+                </div>
+            </div>
+        `;
+
+        // Навешиваем обработчик без inline-JS (защита от инъекций)
+        const inviteBtn = card.querySelector('.invite-btn');
+        if (inviteBtn) {
+            inviteBtn.addEventListener('click', function() {
+                const id = parseInt(this.getAttribute('data-student-id'), 10);
+                const name = decodeURIComponent(this.getAttribute('data-student-name') || '');
+                openInvitationModal(id, name);
+            });
+        }
+        
+        return card;
+    }
+    
+    // Создание элемента строки таблицы
+    function createRowElement(student) {
+        const row = document.createElement('tr');
+        row.className = 'student-row';
+        row.dataset.studentId = student.id;
+        const studentNameSafe = escapeHtml(student.name);
+        
+        const age = student.birth_date ? 
+            Math.floor((new Date() - new Date(student.birth_date)) / (365.25 * 24 * 60 * 60 * 1000)) : '-';
+        
+        const avatarSrc = student.photo_filename ? `/uploads/${encodeURIComponent(student.photo_filename)}` : '';
+        const tablePhotoHtml = student.photo_filename
+            ? `<div class="avatar-hover-wrap" data-avatar-type="photo" data-avatar-src="${avatarSrc}">
+                    <img src="${avatarSrc}" alt="Фото" class="table-photo">
+               </div>`
+            : `<div class="avatar-hover-wrap" data-avatar-type="default" data-avatar-src="">
+                    <div class="table-photo-placeholder">
+                        <i class="fas fa-user text-muted"></i>
+                    </div>
+               </div>`;
+        
+        // Определяем кнопку в зависимости от статуса приглашения
+        const buttonHtml = student.already_invited ? 
+            `<button class="btn btn-secondary btn-sm" disabled>
+                <i class="fas fa-check me-1"></i>Отправлено
+            </button>` :
+            `<button class="btn btn-primary btn-sm invite-btn" data-student-id="${student.id}" data-student-name="${encodeURIComponent(student.name || '')}">
+                <i class="fas fa-envelope me-1"></i>Пригласить
+            </button>`;
+        
+        // Добавляем класс для серого цвета, если приглашение уже отправлено
+        if (student.already_invited) {
+            row.classList.add('already-invited-row');
+        }
+        
+        const infoHtml = `
+            <div class="table-info-grid">
+                <div class="table-info-item"><span class="k">Форма:</span> <span class="v">${escapeHtml(student.study_form || '—')}</span></div>
+                <div class="table-info-item"><span class="k">Возраст:</span> <span class="v">${age} лет</span></div>
+                <div class="table-info-item"><span class="k">Направление:</span> <span class="v">${escapeHtml(student.direction || '—')}</span></div>
+                <div class="table-info-item"><span class="k">Специализация:</span> <span class="v">${escapeHtml(student.specialization || '—')}</span></div>
+            </div>
+        `;
+        const charsHtml = (student.characteristics || []).map(c => {
+            const v = Math.max(0, Math.min(100, Number(c.value) || 0));
+            return `
+                <div class="table-char">
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <small class="text-muted">${escapeHtml(c.name)}</small>
+                        <small class="text-muted">${v.toFixed(0)}%</small>
+                    </div>
+                    <div class="progress" style="height: 8px;">
+                        <div class="progress-bar bg-primary" role="progressbar" style="width: ${v}%" aria-valuenow="${v}" aria-valuemin="0" aria-valuemax="100"></div>
+                    </div>
+                </div>
+            `;
+        }).join('') || `<div class="text-muted small">—</div>`;
+        const tokenTypes = ['Упорство', 'Трудолюбие', 'Понимание', 'Подготовка', 'Креатив', 'Скорость'];
+        const tokensHtml = tokenTypes.map(t => {
+            const cnt = (student.token_counts && Number(student.token_counts[t])) ? Number(student.token_counts[t]) : 0;
+            const src = `/static/icons/${encodeURIComponent(t)}.png`;
+            return `
+                <div class="table-token ${cnt > 0 ? 'has' : 'zero'}" title="${t}">
+                    <img class="table-token-icon" src="${src}" alt="${t}">
+                    <div class="table-token-count">×${cnt}</div>
+                </div>
+            `;
+        }).join('');
+        row.innerHTML = `
+            <td>${tablePhotoHtml}</td>
+            <td>
+                <div class="table-name">${studentNameSafe}</div>
+                <div class="mt-2">${infoHtml}</div>
+            </td>
+            <td><div class="table-chars">${charsHtml}</div></td>
+            <td><div class="table-tokens">${tokensHtml}</div></td>
+            <td>${buttonHtml}</td>
+        `;
+
+        const inviteBtn = row.querySelector('.invite-btn');
+        if (inviteBtn) {
+            inviteBtn.addEventListener('click', function() {
+                const id = parseInt(this.getAttribute('data-student-id'), 10);
+                const name = decodeURIComponent(this.getAttribute('data-student-name') || '');
+                openInvitationModal(id, name);
+            });
+        }
+        
+        return row;
+    }
+    
+    // Функция фильтрации и сортировки
+    function filterAndSort() {
+        const selectedStudyForm = studyFormFilter.value;
+        const selectedDirection = directionFilter.value;
+        const sortField = sortBy.value;
+        
+        // Фильтрация
+        filteredStudents = originalStudents.filter(student => {
+            let show = true;
+            
+            if (selectedStudyForm && student.study_form !== selectedStudyForm) {
+                show = false;
+            }
+            
+            if (selectedDirection && student.direction !== selectedDirection) {
+                show = false;
+            }
+            
+            return show;
+        });
+        
+        // Сортировка
+        filteredStudents.sort((a, b) => {
+            let aVal, bVal;
+            if (sortField === 'name') {
+                aVal = a.name.toLowerCase();
+                bVal = b.name.toLowerCase();
+                return aVal.localeCompare(bVal);
+            }
+            if (sortField === 'birth_date') {
+                aVal = a.birth_date || '';
+                bVal = b.birth_date || '';
+                return bVal.localeCompare(aVal);
+            }
+            if (sortField && sortField.startsWith('char_')) {
+                const chId = parseInt(sortField.replace('char_', ''), 10);
+                const getCh = (s) => (s.characteristics || []).find(c => c.id === chId);
+                aVal = (getCh(a) && getCh(a).value) || 0;
+                bVal = (getCh(b) && getCh(b).value) || 0;
+                return bVal - aVal;
+            }
+            return 0;
+        });
+        
+        // Отображение отфильтрованных и отсортированных студентов
+        displayStudents(filteredStudents);
+    }
+    
+    // Переключение вида
+    function toggleView() {
+        const viewMode = document.querySelector('input[name="view_mode"]:checked').value;
+        
+        const cardsView = document.getElementById('cards_view');
+        const tableView = document.getElementById('table_view');
+        
+        // Убираем все классы
+        cardsView.classList.remove('show', 'hide');
+        tableView.classList.remove('show', 'hide');
+        
+        if (viewMode === 'cards') {
+            cardsView.classList.add('show');
+            tableView.classList.add('hide');
+        } else {
+            cardsView.classList.add('hide');
+            tableView.classList.add('show');
+        }
+        
+        // Применяем текущие фильтры и сортировку при переключении вида
+        filterAndSort();
+    }
+    
+    // Инициализация
+    function initialize() {
+        // Инициализируем отфильтрованные данные
+        filteredStudents = [...originalStudents];
+        
+        // Заполнение фильтра направлений
+        const directions = [...new Set(originalStudents.map(s => s.direction).filter(Boolean))];
+        directions.forEach(direction => {
+            const option = document.createElement('option');
+            option.value = direction;
+            option.textContent = direction;
+            directionFilter.appendChild(option);
+        });
+        
+        // Установка обработчиков событий
+        studyFormFilter.addEventListener('change', filterAndSort);
+        directionFilter.addEventListener('change', filterAndSort);
+        sortBy.addEventListener('change', filterAndSort);
+        viewModeRadios.forEach(radio => radio.addEventListener('change', toggleView));
+        
+        // Первоначальное отображение - устанавливаем правильное состояние и применяем фильтры
+        const cardsView = document.getElementById('cards_view');
+        const tableView = document.getElementById('table_view');
+        
+        // Убираем все классы
+        cardsView.classList.remove('show', 'hide');
+        tableView.classList.remove('show', 'hide');
+        
+        // Устанавливаем начальное состояние (карточки по умолчанию)
+        cardsView.classList.add('show');
+        tableView.classList.add('hide');
+        
+        // Применяем фильтры и сортировку для первоначального отображения
+        filterAndSort();
+    }
+    
+    // Увеличенный аватар при наведении (только ПК) — делегирование (работает и для карточек, и для таблицы)
+    function initAvatarHoverDelegation() {
+        if (!window.matchMedia('(min-width: 769px)').matches) return;
+        const portal = document.getElementById('avatar-preview-portal');
+        if (!portal) return;
+        if (portal.parentElement !== document.body) document.body.appendChild(portal);
+
+        let currentWrap = null;
+        function show(wrap) {
+            currentWrap = wrap;
+            const rect = wrap.getBoundingClientRect();
+            const type = wrap.getAttribute('data-avatar-type') || 'default';
+            const src = wrap.getAttribute('data-avatar-src') || '';
+            const size = 200;
+            const half = size / 2;
+
+            portal.className = 'avatar-preview-portal' + (type === 'default' ? ' avatar-preview-default' : '');
+            portal.innerHTML = '';
+            if (type === 'photo' && src) {
+                const img = document.createElement('img');
+                img.src = src;
+                img.alt = '';
+                portal.appendChild(img);
+            } else {
+                const circle = document.createElement('div');
+                circle.className = 'avatar-circle avatar-circle-lg';
+                circle.innerHTML = '<i class="fas fa-user"></i>';
+                portal.appendChild(circle);
+            }
+            portal.style.left = (rect.left + rect.width / 2 - half) + 'px';
+            portal.style.top = (rect.top + rect.height / 2 - half) + 'px';
+            portal.classList.add('is-visible');
+        }
+        function hide() {
+            currentWrap = null;
+            portal.classList.remove('is-visible');
+        }
+
+        document.addEventListener('mouseover', function(e) {
+            const wrap = e.target.closest && e.target.closest('.avatar-hover-wrap');
+            if (!wrap) return;
+            if (wrap === currentWrap) return;
+            show(wrap);
+        });
+        document.addEventListener('mouseout', function(e) {
+            if (!currentWrap) return;
+            const to = e.relatedTarget;
+            if (to && currentWrap.contains(to)) return;
+            const fromWrap = e.target.closest && e.target.closest('.avatar-hover-wrap');
+            if (fromWrap && fromWrap === currentWrap) hide();
+        });
+    }
+    
+    // Запуск инициализации
+    initAvatarHoverDelegation();
+    initialize();
+});
+</script>
+
+<style>
+.avatar-hover-wrap {
+    display: inline-block;
+    cursor: pointer;
+}
+
+.avatar-preview-portal {
+    position: fixed;
+    z-index: 99999;
+    pointer-events: none;
+    width: 200px;
+    height: 200px;
+    border-radius: 50%;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+    border: 3px solid #0d6efd;
+    overflow: hidden;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+}
+
+.avatar-preview-portal.is-visible { opacity: 1; }
+
+.avatar-preview-portal img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.avatar-preview-portal.avatar-preview-default .avatar-circle-lg {
+    width: 200px;
+    height: 200px;
+    font-size: 4rem;
+    border-radius: 50%;
+    background: linear-gradient(45deg, #007bff, #0056b3);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.student-photo {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 3px solid #007bff;
+}
+
+.student-photo-placeholder {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    border: 3px dashed #dee2e6;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto;
+}
+
+.table-photo {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid #007bff;
+}
+
+.table-photo-placeholder {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    border: 2px solid #dee2e6;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #6c757d;
+    margin: 0 auto;
+}
+
+.student-card-v2 .student-photo,
+.student-card-v2 .student-photo-placeholder {
+    width: 96px;
+    height: 96px;
+    margin: 0;
+}
+
+.student-card-v2 {
+    border-radius: 14px;
+    overflow: hidden;
+}
+
+.student-card-title {
+    padding-bottom: 10px;
+    border-bottom: 1px solid #eef1f4;
+}
+
+.student-card-top {
+    display: grid;
+    grid-template-columns: 110px 1fr;
+    gap: 14px;
+    align-items: start;
+}
+
+.student-card-chars {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.student-char .progress {
+    background-color: #eef1f4;
+    border-radius: 999px;
+    overflow: hidden;
+}
+
+.student-card-info > .row > .col-12 {
+    background: #f8f9fa;
+    border: 1px solid #eef1f4;
+    border-radius: 10px;
+    padding: 8px 10px;
+}
+
+.student-card-info > .row > .col-6 {
+    background: #f8f9fa;
+    border: 1px solid #eef1f4;
+    border-radius: 10px;
+    padding: 8px 10px;
+}
+
+.student-card-info .text-muted.small {
+    font-size: 0.72rem;
+}
+
+.student-card-info > .row > .col-6 > div:last-child,
+.student-card-info > .row > .col-12 > div:last-child {
+    font-size: 0.92rem;
+    line-height: 1.15;
+}
+
+.student-card-actions {
+    display: flex;
+    justify-content: flex-end;
+}
+
+.student-card-actions .btn {
+    width: 100%;
+    border-radius: 10px;
+    padding: 10px 12px;
+    font-weight: 600;
+}
+
+.student-tokens-grid{
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+}
+
+.student-token-item{
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    padding: 8px 6px;
+    border-radius: 10px;
+    border: 1px solid #eef1f4;
+    background: #ffffff;
+}
+
+.student-token-icon{
+    width: 32px;
+    height: 32px;
+    object-fit: contain;
+}
+
+.student-token-count{
+    font-size: 0.78rem;
+    line-height: 1;
+    color: #495057;
+    font-weight: 600;
+}
+
+.student-token-item.zero{
+    opacity: 0.55;
+    background: #f8f9fa;
+}
+
+/* Явные стили для контейнеров */
+#cards_view {
+    display: block;
+}
+
+#table_view {
+    display: none;
+}
+
+/* Убеждаемся, что элементы показываются/скрываются правильно */
+#cards_view.show {
+    display: block !important;
+}
+
+#cards_view.hide {
+    display: none !important;
+}
+
+#table_view.show {
+    display: block !important;
+}
+
+#table_view.hide {
+    display: none !important;
+}
+
+/* Стили для таблицы */
+#students_table {
+    text-align: center;
+}
+
+#students_table th {
+    text-align: center;
+    vertical-align: middle;
+    font-weight: 600;
+    background-color: #343a40;
+    color: white;
+    border-bottom: 2px solid #495057;
+    padding: 12px 15px;
+}
+
+#students_table td {
+    text-align: center;
+    vertical-align: middle;
+    padding: 12px 15px;
+    border-top: 1px solid #dee2e6;
+}
+
+/* Новая компоновка таблицы */
+.table-info-grid{
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px 12px;
+    text-align: left;
+}
+.table-name{
+    text-align: left;
+    font-weight: 700;
+}
+.table-info-item .k{
+    color: #6c757d;
+    font-size: 0.78rem;
+}
+.table-info-item .v{
+    font-weight: 600;
+    font-size: 0.9rem;
+    margin-left: 6px;
+}
+
+.table-chars{
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px 14px;
+    min-width: 280px;
+    text-align: left;
+}
+.table-char .d-flex{
+    gap: 8px;
+}
+.table-chars .progress{
+    background-color: #eef1f4;
+    border-radius: 999px;
+    overflow: hidden;
+}
+
+.table-tokens{
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    justify-items: center;
+    min-width: 160px;
+}
+.table-token{
+    width: 100%;
+    max-width: 70px;
+    padding: 8px 6px;
+    border-radius: 10px;
+    border: 1px solid #eef1f4;
+    background: #ffffff;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+}
+.table-token-icon{
+    width: 26px;
+    height: 26px;
+    object-fit: contain;
+}
+.table-token-count{
+    font-size: 0.75rem;
+    font-weight: 700;
+    line-height: 1;
+    color: #495057;
+}
+.table-token.zero{
+    opacity: 0.55;
+    background: #f8f9fa;
+}
+
+#students_table tbody tr:hover {
+    background-color: #f8f9fa;
+}
+
+/* Стили для фотографий в таблице */
+#students_table td:first-child {
+    width: 60px;
+}
+
+/* Стили для кнопок в таблице */
+#students_table td:last-child {
+    width: 120px;
+}
+
+/* Стили для бейджей оценок */
+#students_table .badge {
+    font-size: 0.85em;
+    padding: 6px 10px;
+    border-radius: 12px;
+    font-weight: 500;
+}
+
+/* Стили для кнопок приглашений */
+#students_table .btn {
+    font-size: 0.8em;
+    padding: 6px 12px;
+    border-radius: 6px;
+}
+
+/* Стили для уже приглашенных студентов */
+.already-invited {
+    opacity: 0.7;
+    background-color: #f8f9fa;
+    border-color: #dee2e6;
+}
+
+.already-invited .card-title,
+.already-invited p,
+.already-invited small {
+    color: #6c757d !important;
+}
+
+.already-invited .badge {
+    opacity: 0.8;
+}
+
+.already-invited-row {
+    opacity: 0.7;
+    background-color: #f8f9fa;
+}
+
+.already-invited-row td {
+    color: #6c757d;
+}
+
+.already-invited-row .badge {
+    opacity: 0.8;
+}
+
+/* Hover эффекты для уже приглашенных */
+.already-invited:hover {
+    opacity: 0.8;
+    transform: none;
+}
+
+.already-invited-row:hover {
+    opacity: 0.8;
+    background-color: #f1f3f4;
+}
+</style>
+{% endblock %}

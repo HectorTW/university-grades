@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <title>{% block title %}Система оценок{% endblock %}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
+</head>
+<body class="d-flex flex-column min-vh-100">
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container">
+            <a class="navbar-brand" href="{{ url_for('index') }}">
+                <i class="fas fa-graduation-cap me-2"></i>Система оценок
+            </a>
+            
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    {% if current_user.is_authenticated %}
+                        {% if current_user.role == 'student' %}
+                            <li class="nav-item">
+                                <a class="nav-link" href="{{ url_for('student_dashboard') }}">
+                                    <i class="fas fa-home me-1"></i>Главная
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="{{ url_for('student_profile') }}">
+                                    <i class="fas fa-user me-1"></i>Профиль
+                                </a>
+                            </li>
+                        {% elif current_user.role == 'teacher' %}
+                            <li class="nav-item">
+                                <a class="nav-link" href="{{ url_for('teacher_dashboard') }}">
+                                    <i class="fas fa-chalkboard-teacher me-1"></i>Панель учителя
+                                </a>
+                            </li>
+                        {% elif current_user.role == 'employer' %}
+                            <li class="nav-item">
+                                <a class="nav-link" href="{{ url_for('employer_dashboard') }}">
+                                    <i class="fas fa-briefcase me-1"></i>Панель работодателя
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="{{ url_for('employer_invitations') }}">
+                                    <i class="fas fa-envelope me-1"></i>Мои приглашения
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="{{ url_for('employer_profile') }}">
+                                    <i class="fas fa-building me-1"></i>Профиль компании
+                                </a>
+                            </li>
+                        {% elif current_user.role == 'admin' %}
+                            <li class="nav-item">
+                                <a class="nav-link" href="{{ url_for('admin_dashboard') }}">
+                                    <i class="fas fa-cog me-1"></i>Админ-панель
+                                </a>
+                            </li>
+                        {% endif %}
+                    {% endif %}
+                </ul>
+                
+                <ul class="navbar-nav">
+                    {% if current_user.is_authenticated %}
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown">
+                                <i class="fas fa-user me-1"></i>{{ current_user.username }}
+                            </a>
+                            <ul class="dropdown-menu">
+                                <li>
+                                    <form method="POST" action="{{ url_for('logout') }}" class="px-2 py-1">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                        <button type="submit" class="dropdown-item">
+                                            <i class="fas fa-sign-out-alt me-1"></i>Выйти
+                                        </button>
+                                    </form>
+                                </li>
+                            </ul>
+                        </li>
+                    {% else %}
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('login') }}">
+                                <i class="fas fa-sign-in-alt me-1"></i>Войти
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('register') }}">
+                                <i class="fas fa-user-plus me-1"></i>Регистрация
+                            </a>
+                        </li>
+                    {% endif %}
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <main class="container my-4 flex-grow-1">
+        {% with messages = get_flashed_messages() %}
+            {% if messages %}
+                {% for message in messages %}
+                    <div class="alert alert-info alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer class="bg-dark text-light py-4 mt-auto">
+        <div class="container">
+            <div class="row">
+                <div class="col-md-6">
+                    <h6 class="mb-3">
+                        <i class="fas fa-graduation-cap me-2"></i>
+                        Система оценок
+                    </h6>
+                    <p class="mb-2">
+                        <i class="fas fa-copyright me-2"></i>
+                        2024 Система оценок. Все права защищены.
+                    </p>
+                    <p class="mb-0 text-muted">
+                        Современная платформа для управления учебным процессом и оценками студентов.
+                    </p>
+                </div>
+                <div class="col-md-6">
+                    <h6 class="mb-3">
+                        <i class="fas fa-users me-2"></i>
+                        Контакты разработчиков
+                    </h6>
+                    <div class="row">
+                        <div class="col-sm-6">
+                            <p class="mb-2">
+                                <i class="fas fa-envelope me-2 text-primary"></i>
+                                <a href="mailto:support@school-grades.ru" class="text-light text-decoration-none">
+                                    support@school-grades.ru
+                                </a>
+                            </p>
+                            <p class="mb-2">
+                                <i class="fas fa-phone me-2 text-success"></i>
+                                <a href="tel:+7-800-555-0123" class="text-light text-decoration-none">
+                                    +7 (800) 555-0123
+                                </a>
+                            </p>
+                        </div>
+                        <div class="col-sm-6">
+                            <p class="mb-2">
+                                <i class="fab fa-github me-2 text-light"></i>
+                                <a href="https://github.com/school-grades" class="text-light text-decoration-none">
+                                    GitHub
+                                </a>
+                            </p>
+                            <p class="mb-2">
+                                <i class="fas fa-globe me-2 text-info"></i>
+                                <a href="https://school-grades.ru" class="text-light text-decoration-none">
+                                    school-grades.ru
+                                </a>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <hr class="my-3">
+            <div class="row">
+                <div class="col-md-8">
+                    <p class="mb-0 text-muted small">
+                        <i class="fas fa-shield-alt me-1"></i>
+                        Система защищена современными технологиями безопасности. 
+                        Все данные зашифрованы и защищены от несанкционированного доступа.
+                    </p>
+                </div>
+                <div class="col-md-4 text-md-end">
+                    <p class="mb-0 text-muted small">
+                        <i class="fas fa-code me-1"></i>
+                        Разработано с использованием Flask & Bootstrap
+                    </p>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

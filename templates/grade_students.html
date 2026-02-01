@@ -1,0 +1,617 @@
+{% extends "base.html" %}
+
+{% block title %}Выставление оценок - {{ group.name }} - Система оценок{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2>
+                <i class="fas fa-edit me-2"></i>
+                Выставление оценок - {{ group.name }}
+            </h2>
+            <a href="{{ url_for('teacher_dashboard') }}" class="btn btn-secondary">
+                <i class="fas fa-arrow-left me-2"></i>Назад к группам
+            </a>
+        </div>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-book me-2"></i>
+                    Настройки оценки
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label for="subjectSearch" class="form-label">
+                        <i class="fas fa-graduation-cap me-1"></i>Предмет *
+                    </label>
+                    <div class="position-relative">
+                        <div class="input-group">
+                            <span class="input-group-text">
+                                <i class="fas fa-search"></i>
+                            </span>
+                            <input type="text" class="form-control" id="subjectSearch" 
+                                   placeholder="Поиск предмета..." autocomplete="off" required>
+                            <button class="btn btn-outline-secondary" type="button" id="clearSubjectSearch">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                        <div id="subjectDropdown" class="dropdown-menu w-100" style="display: none; max-height: 300px; overflow-y: auto;">
+                            {% for subject in subjects %}
+                                <a class="dropdown-item subject-option" href="#" 
+                                   data-subject-id="{{ subject.id }}" 
+                                   data-subject-name="{{ subject.name|lower }}">
+                                    {{ subject.name }}
+                                </a>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    <input type="hidden" id="subject_id" name="subject_id" required>
+                    <div id="selectedSubject" class="mt-2" style="display: none;">
+                        <div class="alert alert-success mb-0">
+                            <i class="fas fa-check me-2"></i>
+                            <strong>Выбранный предмет:</strong> <span id="selectedSubjectName"></span>
+                            <button type="button" class="btn btn-sm btn-outline-danger ms-2" id="clearSelectedSubject">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle me-2"></i>
+                    <strong>Информация:</strong> Выберите предмет, по которому выставляются оценки.
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-chart-bar me-2"></i>
+                    Критерии оценки
+                </h5>
+            </div>
+            <div class="card-body">
+                <p class="mb-2"><strong>Оценка:</strong> от 1 до 5 звёзд.</p>
+                <p class="mb-0"><strong>Жетоны:</strong> выберите от 0 до 3 из шести (Упорство, Трудолюбие, Понимание, Подготовка, Креатив, Скорость).</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12">
+        <div class="card card-students-grades">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-users me-2"></i>
+                    Студенты группы {{ group.name }}
+                </h5>
+            </div>
+            <div class="card-body card-body-students">
+                {% if students %}
+                    <div class="table-responsive table-responsive-avatar">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Студент</th>
+                                    <th class="text-center">Оценка (звёзды)</th>
+                                    <th class="text-center">Жетоны (до 3)</th>
+                                    <th>Комментарий</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for user, profile in students %}
+                                <tr class="student-row" data-student-id="{{ user.id }}">
+                                    <td class="student-cell-avatar">
+                                        <div class="d-flex align-items-center">
+                                            <div class="avatar-hover-wrap me-3" data-avatar-type="{{ 'photo' if profile.photo_filename else 'default' }}" data-avatar-src="{{ url_for('uploaded_file', filename=profile.photo_filename) if profile.photo_filename else '' }}">
+                                                {% if profile.photo_filename %}
+                                                    <img src="{{ url_for('uploaded_file', filename=profile.photo_filename) }}" 
+                                                         class="student-avatar" alt="Фото студента">
+                                                {% else %}
+                                                    <div class="avatar-circle">
+                                                        <i class="fas fa-user"></i>
+                                                    </div>
+                                                {% endif %}
+                                            </div>
+                                            <div>
+                                                <strong>{{ profile.last_name }}</strong>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="text-center stars-cell">
+                                        <div class="star-rating" data-student-id="{{ user.id }}" title="1–5 звёзд">
+                                            <span class="star" data-value="1"><i class="far fa-star"></i></span>
+                                            <span class="star" data-value="2"><i class="far fa-star"></i></span>
+                                            <span class="star" data-value="3"><i class="far fa-star"></i></span>
+                                            <span class="star" data-value="4"><i class="far fa-star"></i></span>
+                                            <span class="star" data-value="5"><i class="far fa-star"></i></span>
+                                        </div>
+                                        <input type="hidden" class="grade-input" value="">
+                                    </td>
+                                    <td class="text-center tokens-cell">
+                                        <div class="token-badges" data-student-id="{{ user.id }}">
+                                            <button type="button" class="token-badge" data-token="Упорство" title="Упорство">
+                                                <img class="token-icon" src="{{ url_for('static', filename='icons/Упорство.png') }}" alt="Упорство">
+                                                <div class="token-label">Упорство</div>
+                                            </button>
+                                            <button type="button" class="token-badge" data-token="Трудолюбие" title="Трудолюбие">
+                                                <img class="token-icon" src="{{ url_for('static', filename='icons/Трудолюбие.png') }}" alt="Трудолюбие">
+                                                <div class="token-label">Трудолюбие</div>
+                                            </button>
+                                            <button type="button" class="token-badge" data-token="Понимание" title="Понимание">
+                                                <img class="token-icon" src="{{ url_for('static', filename='icons/Понимание.png') }}" alt="Понимание">
+                                                <div class="token-label">Понимание</div>
+                                            </button>
+                                            <button type="button" class="token-badge" data-token="Подготовка" title="Подготовка">
+                                                <img class="token-icon" src="{{ url_for('static', filename='icons/Подготовка.png') }}" alt="Подготовка">
+                                                <div class="token-label">Подготовка</div>
+                                            </button>
+                                            <button type="button" class="token-badge" data-token="Креатив" title="Креатив">
+                                                <img class="token-icon" src="{{ url_for('static', filename='icons/Креатив.png') }}" alt="Креатив">
+                                                <div class="token-label">Креатив</div>
+                                            </button>
+                                            <button type="button" class="token-badge" data-token="Скорость" title="Скорость">
+                                                <img class="token-icon" src="{{ url_for('static', filename='icons/Скорость.png') }}" alt="Скорость">
+                                                <div class="token-label">Скорость</div>
+                                            </button>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <input type="text" class="form-control comment-input" 
+                                               placeholder="Комментарий (необязательно)">
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <div class="d-flex justify-content-between mt-4">
+                        <div class="alert alert-warning mb-0">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            <strong>Внимание:</strong> Оценка — от 1 до 5 звёзд. Жетонов можно выбрать не более 3.
+                        </div>
+                        <button type="button" class="btn btn-success btn-lg" id="submit-grades">
+                            <i class="fas fa-save me-2"></i>Сохранить оценки
+                        </button>
+                    </div>
+                {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-users fa-3x text-muted mb-3"></i>
+                        <h5 class="text-muted">Нет студентов в группе</h5>
+                        <p class="text-muted">В этой группе пока нет студентов с заполненными профилями.</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+<div id="avatar-preview-portal" class="avatar-preview-portal" aria-hidden="true"></div>
+{% endblock %}
+
+{% block scripts %}
+<style>
+.avatar-circle {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: linear-gradient(45deg, #007bff, #0056b3);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+}
+
+.student-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid #007bff;
+}
+
+/* Увеличенный аватар при наведении (только ПК) — рендер в body, чтобы ничто не перекрывало */
+.avatar-hover-wrap {
+    display: inline-block;
+    cursor: pointer;
+}
+
+#avatar-preview-portal {
+    position: fixed;
+    z-index: 99999;
+    pointer-events: none;
+    width: 200px;
+    height: 200px;
+    border-radius: 50%;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+    border: 3px solid #007bff;
+    overflow: hidden;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+}
+
+#avatar-preview-portal.is-visible {
+    opacity: 1;
+}
+
+#avatar-preview-portal img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+#avatar-preview-portal.avatar-preview-default .avatar-circle-lg {
+    width: 200px;
+    height: 200px;
+    font-size: 4rem;
+    border-radius: 50%;
+    background: linear-gradient(45deg, #007bff, #0056b3);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.comment-input {
+    min-width: 200px;
+}
+
+.star-rating { display: inline-flex; gap: 2px; }
+.star-rating .star { cursor: pointer; color: #ddd; font-size: 1.2rem; }
+.star-rating .star.active, .star-rating .star:hover { color: #ffc107; }
+.star-rating .star.active i::before { content: "\f005"; }
+.star-rating .star i::before { content: "\f005"; }
+.star-rating .star:not(.active) i::before { content: "\f005"; font-weight: 400; }
+.star-rating .star.active i::before { font-weight: 900; }
+
+.token-badges {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(88px, 1fr));
+    gap: 8px;
+    justify-items: center;
+    align-items: start;
+}
+.token-badge {
+    cursor: pointer;
+    width: 100%;
+    max-width: 110px;
+    padding: 8px 6px;
+    border-radius: 10px;
+    background: #f8f9fa;
+    color: #495057;
+    border: 1px solid #dee2e6;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+}
+.token-icon {
+    width: 36px;
+    height: 36px;
+    object-fit: contain;
+}
+.token-label {
+    font-size: 0.78rem;
+    line-height: 1.05;
+    text-align: center;
+}
+.token-badge.selected { background: #0d6efd; color: #fff; border-color: #0d6efd; }
+.token-badge.selected .token-label { color: #fff; }
+.token-badge:hover { background: #eef1f4; }
+.token-badge.selected:hover { background: #0b5ed7; color: #fff; }
+.token-badge.disabled { opacity: 0.5; cursor: not-allowed; }
+.token-badge.disabled:not(.selected) { pointer-events: none; }
+
+/* Стили для поиска предметов */
+#subjectSearch {
+    border-right: none;
+}
+
+#clearSubjectSearch {
+    border-left: none;
+    display: none;
+}
+
+#clearSubjectSearch:hover {
+    background-color: #f8f9fa;
+}
+
+#subjectDropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    z-index: 1000;
+    border: 1px solid #dee2e6;
+    border-top: none;
+    border-radius: 0 0 0.375rem 0.375rem;
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+}
+
+.subject-option {
+    padding: 0.5rem 1rem;
+    border-bottom: 1px solid #f8f9fa;
+    transition: background-color 0.15s ease-in-out;
+}
+
+.subject-option:hover {
+    background-color: #f8f9fa;
+}
+
+.subject-option:last-child {
+    border-bottom: none;
+}
+
+@media (max-width: 768px) {
+    .comment-input { min-width: 150px; }
+    #subjectDropdown { max-height: 200px; }
+    .token-badges { font-size: 0.75rem; }
+    .token-badges { grid-template-columns: repeat(3, minmax(76px, 1fr)); gap: 6px; }
+    .token-badge { max-width: 96px; padding: 6px 4px; }
+    .token-icon { width: 30px; height: 30px; }
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Элементы для поиска предметов
+    const subjectSearch = document.getElementById('subjectSearch');
+    const subjectDropdown = document.getElementById('subjectDropdown');
+    const subjectOptions = document.querySelectorAll('.subject-option');
+    const clearSubjectSearch = document.getElementById('clearSubjectSearch');
+    const selectedSubject = document.getElementById('selectedSubject');
+    const selectedSubjectName = document.getElementById('selectedSubjectName');
+    const clearSelectedSubject = document.getElementById('clearSelectedSubject');
+    const hiddenSubjectId = document.getElementById('subject_id');
+    
+    // Функция фильтрации предметов
+    function filterSubjects() {
+        const searchTerm = subjectSearch.value.toLowerCase().trim();
+        let visibleCount = 0;
+        
+        subjectOptions.forEach(option => {
+            const subjectName = option.getAttribute('data-subject-name');
+            const isMatch = subjectName.includes(searchTerm);
+            
+            if (isMatch) {
+                option.style.display = 'block';
+                visibleCount++;
+            } else {
+                option.style.display = 'none';
+            }
+        });
+        
+        // Показываем/скрываем dropdown
+        if (searchTerm !== '' && visibleCount > 0) {
+            subjectDropdown.style.display = 'block';
+        } else {
+            subjectDropdown.style.display = 'none';
+        }
+        
+        // Показываем/скрываем кнопку очистки
+        if (searchTerm !== '') {
+            clearSubjectSearch.style.display = 'block';
+        } else {
+            clearSubjectSearch.style.display = 'none';
+        }
+    }
+    
+    // Обработчик ввода в поле поиска
+    subjectSearch.addEventListener('input', filterSubjects);
+    
+    // Обработчик фокуса на поле поиска
+    subjectSearch.addEventListener('focus', function() {
+        if (subjectSearch.value.trim() !== '') {
+            filterSubjects();
+        }
+    });
+    
+    // Обработчик клика вне dropdown
+    document.addEventListener('click', function(e) {
+        if (!e.target.closest('#subjectSearch') && !e.target.closest('#subjectDropdown')) {
+            subjectDropdown.style.display = 'none';
+        }
+    });
+    
+    // Обработчик выбора предмета
+    subjectOptions.forEach(option => {
+        option.addEventListener('click', function(e) {
+            e.preventDefault();
+            const subjectId = this.getAttribute('data-subject-id');
+            const subjectName = this.textContent.trim();
+            
+            // Устанавливаем выбранный предмет
+            hiddenSubjectId.value = subjectId;
+            selectedSubjectName.textContent = subjectName;
+            selectedSubject.style.display = 'block';
+            
+            // Скрываем dropdown и очищаем поиск
+            subjectDropdown.style.display = 'none';
+            subjectSearch.value = '';
+            clearSubjectSearch.style.display = 'none';
+        });
+    });
+    
+    // Обработчик кнопки очистки поиска
+    clearSubjectSearch.addEventListener('click', function() {
+        subjectSearch.value = '';
+        subjectDropdown.style.display = 'none';
+        clearSubjectSearch.style.display = 'none';
+        subjectSearch.focus();
+    });
+    
+    // Обработчик кнопки очистки выбранного предмета
+    clearSelectedSubject.addEventListener('click', function() {
+        hiddenSubjectId.value = '';
+        selectedSubject.style.display = 'none';
+        subjectSearch.focus();
+    });
+    
+    // Обработчик клавиш для поиска
+    subjectSearch.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            subjectSearch.value = '';
+            subjectDropdown.style.display = 'none';
+            clearSubjectSearch.style.display = 'none';
+        }
+    });
+    
+    // Звёзды: клик по звезде устанавливает оценку 1–5
+    document.querySelectorAll('.star-rating').forEach(rating => {
+        const stars = rating.querySelectorAll('.star');
+        const hidden = rating.closest('tr').querySelector('.grade-input');
+        stars.forEach((star, idx) => {
+            star.addEventListener('click', function() {
+                const v = idx + 1;
+                stars.forEach((s, i) => {
+                    const active = i < v;
+                    s.classList.toggle('active', active);
+                    const icon = s.querySelector('i');
+                    if (icon) {
+                        icon.classList.remove('far', 'fas');
+                        icon.classList.add(active ? 'fas' : 'far');
+                        icon.classList.add('fa-star');
+                    }
+                });
+                hidden.value = v;
+            });
+        });
+    });
+    
+    // Жетоны: клик переключает выбор, не более 3
+    document.querySelectorAll('.token-badges').forEach(container => {
+        const badges = container.querySelectorAll('.token-badge');
+        badges.forEach(badge => {
+            badge.addEventListener('click', function() {
+                if (this.classList.contains('disabled')) return;
+                const row = this.closest('tr');
+                const selected = row.querySelectorAll('.token-badge.selected');
+                if (this.classList.contains('selected')) {
+                    this.classList.remove('selected');
+                } else if (selected.length < 3) {
+                    this.classList.add('selected');
+                }
+                const nowSelected = row.querySelectorAll('.token-badge.selected');
+                badges.forEach(b => {
+                    b.classList.toggle('disabled', !b.classList.contains('selected') && nowSelected.length >= 3);
+                });
+            });
+        });
+    });
+    
+    // Отправка оценок
+    document.getElementById('submit-grades').addEventListener('click', function() {
+        const subjectId = document.getElementById('subject_id').value;
+        if (!subjectId) {
+            alert('Пожалуйста, выберите предмет');
+            return;
+        }
+        
+        const grades = [];
+        document.querySelectorAll('tbody tr.student-row').forEach(row => {
+            const studentId = row.dataset.studentId;
+            const gradeVal = row.querySelector('.grade-input').value;
+            const comment = row.querySelector('.comment-input').value;
+            const tokens = Array.from(row.querySelectorAll('.token-badge.selected')).map(b => b.dataset.token);
+            
+            if (gradeVal) {
+                grades.push({
+                    student_id: parseInt(studentId, 10),
+                    grade: parseInt(gradeVal, 10),
+                    tokens: tokens,
+                    comment: comment || ''
+                });
+            }
+        });
+        
+        if (grades.length === 0) {
+            alert('Пожалуйста, поставьте хотя бы одну оценку (звёзды)');
+            return;
+        }
+        
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+        const headers = { 'Content-Type': 'application/json' };
+        if (csrfToken) headers['X-CSRFToken'] = csrfToken;
+
+        fetch('/teacher/submit_grades', {
+            method: 'POST',
+            headers: headers,
+            body: JSON.stringify({ subject_id: parseInt(subjectId, 10), grades: grades }),
+            credentials: 'same-origin'
+        })
+        .then(response => response.ok ? response.json() : response.json().then(d => { throw new Error(d.message || 'Ошибка'); }))
+        .then(data => {
+            if (data.success) {
+                alert('Оценки успешно сохранены!');
+                document.querySelectorAll('.grade-input').forEach(i => { i.value = ''; });
+                document.querySelectorAll('.comment-input').forEach(i => { i.value = ''; });
+                document.querySelectorAll('.star-rating .star').forEach(s => s.classList.remove('active'));
+                document.querySelectorAll('.token-badge.selected').forEach(b => b.classList.remove('selected'));
+                document.querySelectorAll('.token-badge').forEach(b => b.classList.remove('disabled'));
+            } else {
+                alert('Ошибка: ' + (data.message || 'Неизвестная ошибка'));
+            }
+        })
+        .catch(err => {
+            console.error(err);
+            alert('Ошибка при сохранении оценок');
+        });
+    });
+
+    // Увеличенный аватар при наведении — рендер в body, чтобы ничто не перекрывало (только ПК)
+    if (window.matchMedia('(min-width: 769px)').matches) {
+        var portal = document.getElementById('avatar-preview-portal');
+        if (!portal) {
+            portal = document.createElement('div');
+            portal.id = 'avatar-preview-portal';
+            portal.className = 'avatar-preview-portal';
+            portal.setAttribute('aria-hidden', 'true');
+            document.body.appendChild(portal);
+        } else {
+            document.body.appendChild(portal); // переносим в body, чтобы ничто не перекрывало
+        }
+        document.querySelectorAll('.avatar-hover-wrap').forEach(function(wrap) {
+            wrap.addEventListener('mouseenter', function() {
+                var rect = wrap.getBoundingClientRect();
+                var type = wrap.getAttribute('data-avatar-type') || 'default';
+                var src = wrap.getAttribute('data-avatar-src') || '';
+                var size = 200;
+                var half = size / 2;
+                portal.className = 'avatar-preview-portal' + (type === 'default' ? ' avatar-preview-default' : '');
+                portal.innerHTML = '';
+                if (type === 'photo' && src) {
+                    var img = document.createElement('img');
+                    img.src = src;
+                    img.alt = '';
+                    portal.appendChild(img);
+                } else {
+                    var circle = document.createElement('div');
+                    circle.className = 'avatar-circle avatar-circle-lg';
+                    circle.innerHTML = '<i class="fas fa-user"></i>';
+                    portal.appendChild(circle);
+                }
+                portal.style.left = (rect.left + rect.width / 2 - half) + 'px';
+                portal.style.top = (rect.top + rect.height / 2 - half) + 'px';
+                portal.classList.add('is-visible');
+            });
+            wrap.addEventListener('mouseleave', function() {
+                portal.classList.remove('is-visible');
+            });
+        });
+    }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+
+{% block title %}Управление специализациями - Админ-панель{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2>
+                <i class="fas fa-tools me-2"></i>
+                Управление специализациями
+            </h2>
+            <a href="{{ url_for('admin_dashboard') }}" class="btn btn-secondary">
+                <i class="fas fa-arrow-left me-2"></i>Назад к админ-панели
+            </a>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-plus me-2"></i>
+                    Добавить специализацию
+                </h5>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('add_specialization') }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                    <div class="mb-3">
+                        <label for="name" class="form-label">Название специализации</label>
+                        <input type="text" class="form-control" id="name" name="name" 
+                               placeholder="Например: Мосты" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-plus me-2"></i>Добавить
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-list me-2"></i>
+                    Список специализаций
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if specializations %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Название</th>
+                                    <th>Дата создания</th>
+                                    <th>Действия</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for specialization in specializations %}
+                                <tr>
+                                    <td>{{ specialization.id }}</td>
+                                    <td>
+                                        <strong>{{ specialization.name }}</strong>
+                                    </td>
+                                    <td>
+                                        <small class="text-muted">
+                                            {{ specialization.created_at.strftime('%d.%m.%Y') }}
+                                        </small>
+                                    </td>
+                                    <td>
+                                        <form method="POST" action="{{ url_for('delete_specialization', specialization_id=specialization.id) }}" class="d-inline"
+                                              onsubmit="return confirm('Удалить специализацию \"{{ specialization.name }}\"?')">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                            <button type="submit" class="btn btn-danger btn-sm">
+                                                <i class="fas fa-trash me-1"></i>Удалить
+                                            </button>
+                                        </form>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-tools fa-3x text-muted mb-3"></i>
+                        <h5 class="text-muted">Нет специализаций</h5>
+                        <p class="text-muted">Добавьте первую специализацию, используя форму слева.</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-info-circle me-2"></i>
+                    Информация
+                </h5>
+            </div>
+            <div class="card-body">
+                <p><strong>Специализации</strong> - это конкретные области в рамках направлений, которые студенты могут выбрать для углубленного изучения.</p>
+                <p>Примеры специализаций: Мосты, Дороги, Здания, Тоннели, Аэропорты, Порты, Железные дороги.</p>
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    <strong>Внимание:</strong> При удалении специализации, студенты, выбравшие её, потеряют связь с этой специализацией.
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

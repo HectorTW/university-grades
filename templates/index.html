@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+
+{% block title %}Главная - Система оценок{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="jumbotron bg-primary text-white text-center py-4 py-md-5 rounded-3 mb-4 mb-md-5">
+            <h1 class="display-4 display-5-mobile">
+                <i class="fas fa-graduation-cap me-2 me-md-3"></i>
+                Система оценок
+            </h1>
+            <p class="lead d-none d-md-block">Современная платформа для управления оценками и профилями студентов</p>
+            <p class="lead d-md-none">Платформа для управления оценками студентов</p>
+            {% if not current_user.is_authenticated %}
+                <div class="d-flex flex-column flex-md-row justify-content-center gap-2 gap-md-3">
+                    <a href="{{ url_for('register') }}" class="btn btn-light btn-lg">
+                        <i class="fas fa-user-plus me-2"></i>Регистрация
+                    </a>
+                    <a href="{{ url_for('login') }}" class="btn btn-outline-light btn-lg">
+                        <i class="fas fa-sign-in-alt me-2"></i>Войти
+                    </a>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-4 mb-4">
+        <div class="card h-100 text-center">
+            <div class="card-body p-3 p-md-4">
+                <i class="fas fa-user-graduate fa-2x fa-md-3x text-primary mb-3"></i>
+                <h5 class="card-title">Для студентов</h5>
+                <p class="card-text">Создайте свой профиль, просматривайте оценки и отслеживайте свой прогресс в обучении.</p>
+                {% if not current_user.is_authenticated %}
+                    <a href="{{ url_for('register', role='student') }}" class="btn btn-primary">Зарегистрироваться</a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4 mb-4">
+        <div class="card h-100 text-center">
+            <div class="card-body p-3 p-md-4">
+                <i class="fas fa-chalkboard-teacher fa-2x fa-md-3x text-success mb-3"></i>
+                <h5 class="card-title">Для учителей</h5>
+                <p class="card-text">Выставляйте оценки студентам по трем критериям: оценка, трудолюбие и знания.</p>
+                {% if not current_user.is_authenticated %}
+                    <a href="{{ url_for('register', role='teacher') }}" class="btn btn-success">Зарегистрироваться</a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4 mb-4">
+        <div class="card h-100 text-center">
+            <div class="card-body p-3 p-md-4">
+                <i class="fas fa-briefcase fa-2x fa-md-3x text-warning mb-3"></i>
+                <h5 class="card-title">Для работодателей</h5>
+                <p class="card-text">Просматривайте профили студентов, отправляйте приглашения на собеседования и находите таланты.</p>
+                {% if not current_user.is_authenticated %}
+                    <a href="{{ url_for('register', role='employer') }}" class="btn btn-warning">Зарегистрироваться</a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-5">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-light">
+                <h5 class="mb-0">
+                    <i class="fas fa-info-circle me-2"></i>
+                    Возможности системы
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6><i class="fas fa-check text-success me-2"></i>Для студентов:</h6>
+                        <ul class="list-unstyled">
+                            <li><i class="fas fa-arrow-right text-primary me-2"></i>Создание и редактирование профиля</li>
+                            <li><i class="fas fa-arrow-right text-primary me-2"></i>Просмотр всех оценок</li>
+                            <li><i class="fas fa-arrow-right text-primary me-2"></i>Отслеживание прогресса</li>
+                            <li><i class="fas fa-arrow-right text-primary me-2"></i>Просмотр комментариев учителей</li>
+                        </ul>
+                    </div>
+                    <div class="col-md-6">
+                        <h6><i class="fas fa-check text-success me-2"></i>Для работодателей:</h6>
+                        <ul class="list-unstyled">
+                            <li><i class="fas fa-arrow-right text-warning me-2"></i>Просмотр профилей студентов</li>
+                            <li><i class="fas fa-arrow-right text-warning me-2"></i>Фильтрация по направлениям</li>
+                            <li><i class="fas fa-arrow-right text-warning me-2"></i>Отправка приглашений</li>
+                            <li><i class="fas fa-arrow-right text-warning me-2"></i>Просмотр оценок и достижений</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

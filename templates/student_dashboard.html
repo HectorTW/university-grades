@@ -1,0 +1,264 @@
+{% extends "base.html" %}
+
+{% block title %}Панель студента - Система оценок{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2>
+                <i class="fas fa-user-graduate me-2"></i>
+                Панель студента
+            </h2>
+            <a href="{{ url_for('student_profile') }}" class="btn btn-primary">
+                <i class="fas fa-edit me-2"></i>Редактировать профиль
+            </a>
+        </div>
+    </div>
+</div>
+
+{% if profile %}
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="profile-card text-center">
+            {% if profile.photo_filename %}
+                <img src="{{ url_for('uploaded_file', filename=profile.photo_filename) }}" 
+                     alt="Фото профиля" class="profile-avatar-photo mb-3">
+            {% else %}
+                <div class="profile-avatar">
+                    <i class="fas fa-user"></i>
+                </div>
+            {% endif %}
+            <h4>{{ profile.first_name }} {{ profile.last_name }}</h4>
+            <p class="mb-1">
+                <i class="fas fa-users me-1"></i>
+                Группа: {{ profile.group_name }}
+            </p>
+            {% if profile.study_form %}
+                <p class="mb-1">
+                    <i class="fas fa-graduation-cap me-1"></i>
+                    Форма: {{ profile.study_form }}
+                </p>
+            {% endif %}
+            {% if profile.desired_direction %}
+                <p class="mb-1">
+                    <i class="fas fa-compass me-1"></i>
+                    Направление: {{ profile.desired_direction.name }}
+                </p>
+            {% endif %}
+            {% if profile.desired_specialization %}
+                <p class="mb-0">
+                    <i class="fas fa-tools me-1"></i>
+                    Специализация: {{ profile.desired_specialization.name }}
+                </p>
+            {% endif %}
+        </div>
+    </div>
+    
+    <div class="col-md-8">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-info-circle me-2"></i>
+                    Информация о профиле
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <p><strong>Имя:</strong> {{ profile.first_name }}</p>
+                        <p><strong>Фамилия:</strong> {{ profile.last_name }}</p>
+                        <p><strong>Группа:</strong> {{ profile.group_name }}</p>
+                    </div>
+                    <div class="col-md-6">
+                        {% if profile.phone %}
+                            <p><strong>Телефон:</strong> {{ profile.phone }}</p>
+                        {% endif %}
+                        {% if profile.birth_date %}
+                            <p><strong>Дата рождения:</strong> {{ profile.birth_date.strftime('%d.%m.%Y') }}</p>
+                        {% endif %}
+                        {% if profile.address %}
+                            <p><strong>Адрес:</strong> {{ profile.address }}</p>
+                        {% endif %}
+                    </div>
+                </div>
+                {% if profile.about_me %}
+                <div class="row mt-3">
+                    <div class="col-12">
+                        <h6><i class="fas fa-heart me-2"></i>О себе:</h6>
+                        <p class="text-muted">{{ profile.about_me }}</p>
+                    </div>
+                </div>
+                {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% else %}
+<div class="alert alert-warning">
+    <i class="fas fa-exclamation-triangle me-2"></i>
+    <strong>Внимание!</strong> Вы еще не заполнили свой профиль. 
+    <a href="{{ url_for('student_profile') }}" class="alert-link">Заполните его сейчас</a>
+</div>
+{% endif %}
+
+{% if grades %}
+<div class="row mt-4">
+    <div class="col-md-4">
+        <div class="stats-card">
+            <div class="stats-number">
+                {% set total_grades = grades|length %}
+                {{ total_grades }}
+            </div>
+            <div>Всего оценок</div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="stats-card">
+            <div class="stats-number">
+                {% set avg_grade = (grades|sum(attribute='grade_value') / grades|length) if grades else 0 %}
+                {{ "%.1f"|format(avg_grade) }}
+            </div>
+            <div>Средний балл</div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="stats-card">
+            <div class="stats-number">
+                {% set subjects = grades|map(attribute='subject')|unique|list|length %}
+                {{ subjects }}
+            </div>
+            <div>Предметов</div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Приглашения на собеседования -->
+{% if invitations %}
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-warning text-dark">
+                <h5 class="mb-0">
+                    <i class="fas fa-handshake me-2"></i>
+                    Приглашения на собеседования
+                </h5>
+            </div>
+            <div class="card-body">
+                {% for invitation in invitations %}
+                <div class="card mb-3 border-{% if invitation.status == 'pending' %}primary{% elif invitation.status == 'accepted' %}success{% else %}secondary{% endif %}">
+                    <div class="card-body">
+                        <div class="row">
+                            <!-- Первая колонка с основной информацией -->
+                            <div class="col-md-4">
+                                <p class="mb-2">
+                                    <i class="fas fa-briefcase me-2 text-primary"></i>
+                                    <strong>Должность:</strong> {{ invitation.position }}
+                                </p>
+                                <p class="mb-2">
+                                    <i class="fas fa-building me-2 text-primary"></i>
+                                    <strong>Компания:</strong> {{ invitation.employer.employer_profile.company_name if invitation.employer.employer_profile else 'Не указано' }}
+                                </p>
+                                <p class="mb-0">
+                                    <i class="fas fa-clock me-2 text-primary"></i>
+                                    <strong>Получено:</strong> {{ invitation.created_at.strftime('%d.%m.%Y в %H:%M') }}
+                                </p>
+                            </div>
+                            
+                            <!-- Вторая колонка с сообщением -->
+                            <div class="col-md-4">
+                                {% if invitation.message %}
+                                <p class="mb-2">
+                                    <i class="fas fa-envelope me-2 text-primary"></i>
+                                    <strong>Сообщение:</strong>
+                                </p>
+                                <p class="mb-0">{{ invitation.message }}</p>
+                                {% else %}
+                                <p class="text-muted mb-0">Сообщения нет</p>
+                                {% endif %}
+                            </div>
+                            
+                            <!-- Третья колонка с кнопками или контактами -->
+                            <div class="col-md-4">
+                                {% if invitation.status == 'pending' %}
+                                    <div class="d-flex flex-column h-100 justify-content-center align-items-center">
+                                        <form method="POST" action="{{ url_for('respond_invitation', invitation_id=invitation.id) }}" class="w-100 mb-3">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                            <input type="hidden" name="status" value="accepted"/>
+                                            <button type="submit" class="btn btn-success btn-lg w-100">
+                                                <i class="fas fa-check me-2"></i>Принять
+                                            </button>
+                                        </form>
+                                        <form method="POST" action="{{ url_for('respond_invitation', invitation_id=invitation.id) }}" class="w-100">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                            <input type="hidden" name="status" value="declined"/>
+                                            <button type="submit" class="btn btn-danger btn-lg w-100">
+                                                <i class="fas fa-times me-2"></i>Отклонить
+                                            </button>
+                                        </form>
+                                    </div>
+                                {% elif invitation.status == 'accepted' and invitation.employer.employer_profile %}
+                                    <!-- Карточка с контактами работодателя -->
+                                    <div class="card border-success bg-light">
+                                        <div class="card-header bg-success text-white">
+                                            <h6 class="mb-0">
+                                                <i class="fas fa-address-book me-2"></i>Контакты работодателя
+                                            </h6>
+                                        </div>
+                                        <div class="card-body">
+                                            <p class="mb-2">
+                                                <i class="fas fa-user me-2 text-primary"></i>
+                                                <strong>Контактное лицо:</strong> {{ invitation.employer.employer_profile.contact_person }}
+                                            </p>
+                                            <p class="mb-2">
+                                                <i class="fas fa-envelope me-2 text-primary"></i>
+                                                <strong>Email:</strong> 
+                                                <a href="mailto:{{ invitation.employer.employer_profile.email }}" 
+                                                   class="text-decoration-none text-primary">
+                                                    {{ invitation.employer.employer_profile.email }}
+                                                </a>
+                                            </p>
+                                            <p class="mb-2">
+                                                <i class="fas fa-phone me-2 text-primary"></i>
+                                                <strong>Телефон:</strong> 
+                                                <a href="tel:{{ invitation.employer.employer_profile.phone }}" 
+                                                   class="text-decoration-none text-primary">
+                                                    {{ invitation.employer.employer_profile.phone }}
+                                                </a>
+                                            </p>
+                                            {% if invitation.employer.employer_profile.company_address %}
+                                            <p class="mb-0">
+                                                <i class="fas fa-map-marker-alt me-2 text-primary"></i>
+                                                <strong>Адрес:</strong> {{ invitation.employer.employer_profile.company_address }}
+                                            </p>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                {% elif invitation.status == 'accepted' %}
+                                    <div class="d-flex flex-column h-100 justify-content-center align-items-center">
+                                        <span class="badge bg-success fs-5 p-3">
+                                            <i class="fas fa-check me-2"></i>Принято
+                                        </span>
+                                    </div>
+                                {% else %}
+                                    <div class="d-flex flex-column h-100 justify-content-center align-items-center">
+                                        <span class="badge bg-secondary fs-5 p-3">
+                                            <i class="fas fa-times me-2"></i>Отклонено
+                                        </span>
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

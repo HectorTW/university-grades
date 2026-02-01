@@ -1,0 +1,863 @@
+{% extends "base.html" %}
+
+{% block title %}Админ-панель - Система оценок{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-4">
+            <h2 class="mb-3 mb-md-0">
+                <i class="fas fa-cog me-2"></i>
+                Админ-панель
+            </h2>
+            <div class="d-flex flex-wrap gap-2">
+                <a href="{{ url_for('admin_directions') }}" class="btn btn-info btn-sm">
+                    <i class="fas fa-compass me-1 d-none d-md-inline"></i>Направления
+                </a>
+                <a href="{{ url_for('admin_specializations') }}" class="btn btn-warning btn-sm">
+                    <i class="fas fa-tools me-1 d-none d-md-inline"></i>Специализации
+                </a>
+                <a href="{{ url_for('admin_groups') }}" class="btn btn-success btn-sm">
+                    <i class="fas fa-users me-1 d-none d-md-inline"></i>Группы
+                </a>
+                <a href="{{ url_for('admin_subjects') }}" class="btn btn-primary btn-sm">
+                    <i class="fas fa-book me-1 d-none d-md-inline"></i>Предметы
+                </a>
+                <a href="{{ url_for('admin_characteristics') }}" class="btn btn-secondary btn-sm">
+                    <i class="fas fa-chart-line me-1 d-none d-md-inline"></i>Характеристики
+                </a>
+                <a href="{{ url_for('admin_subject_characteristics') }}" class="btn btn-secondary btn-sm">
+                    <i class="fas fa-balance-scale me-1 d-none d-md-inline"></i>Влияние предметов
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Статистика -->
+<div class="row mb-4">
+    <div class="col-6 col-md-2 mb-3">
+        <div class="stats-card">
+            <div class="stats-number">
+                {{ users|selectattr('role', 'equalto', 'student')|list|length }}
+            </div>
+            <div>Студентов</div>
+        </div>
+    </div>
+    
+    <div class="col-6 col-md-2 mb-3">
+        <div class="stats-card">
+            <div class="stats-number">
+                {{ users|selectattr('role', 'equalto', 'teacher')|list|length }}
+            </div>
+            <div>Учителей</div>
+        </div>
+    </div>
+    
+    <div class="col-6 col-md-2 mb-3">
+        <div class="stats-card">
+            <div class="stats-number">
+                {{ users|selectattr('role', 'equalto', 'employer')|list|length }}
+            </div>
+            <div>Работодателей</div>
+        </div>
+    </div>
+    
+    <div class="col-6 col-md-2 mb-3">
+        <div class="stats-card">
+            <div class="stats-number">
+                {{ pending_teachers|length }}
+            </div>
+            <div>Учителя ожидают</div>
+        </div>
+    </div>
+    
+    <div class="col-6 col-md-2 mb-3">
+        <div class="stats-card">
+            <div class="stats-number">
+                {{ pending_employers|length }}
+            </div>
+            <div>Работодатели ожидают</div>
+        </div>
+    </div>
+    
+    <div class="col-6 col-md-2 mb-3">
+        <div class="stats-card">
+            <div class="stats-number">
+                {{ invitations|length }}
+            </div>
+            <div>Приглашений</div>
+        </div>
+    </div>
+</div>
+
+<!-- Ожидающие одобрения учителя -->
+{% if pending_teachers %}
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-warning text-dark">
+                <h5 class="mb-0">
+                    <i class="fas fa-clock me-2"></i>
+                    Учителя, ожидающие одобрения
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Имя пользователя</th>
+                                <th>Email</th>
+                                <th>Дата регистрации</th>
+                                <th>Действия</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for teacher in pending_teachers %}
+                            <tr>
+                                <td>
+                                    <strong>{{ teacher.username }}</strong>
+                                </td>
+                                <td>{{ teacher.email }}</td>
+                                <td>{{ teacher.created_at.strftime('%d.%m.%Y в %H:%M') }}</td>
+                                <td>
+                                    <form method="POST" action="{{ url_for('approve_teacher', user_id=teacher.id) }}" class="d-inline"
+                                          onsubmit="return confirm('Одобрить учителя {{ teacher.username }}?')">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                        <button type="submit" class="btn btn-success btn-sm">
+                                            <i class="fas fa-check me-1"></i>Одобрить
+                                        </button>
+                                    </form>
+                                    <form method="POST" action="{{ url_for('delete_user', user_id=teacher.id) }}" class="d-inline"
+                                          onsubmit="return confirm('Удалить пользователя {{ teacher.username }}?')">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                        <button type="submit" class="btn btn-danger btn-sm">
+                                            <i class="fas fa-trash me-1"></i>Удалить
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Ожидающие одобрения работодатели -->
+{% if pending_employers %}
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0">
+                    <i class="fas fa-briefcase me-2"></i>
+                    Работодатели, ожидающие одобрения
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Имя пользователя</th>
+                                <th>Email</th>
+                                <th>Дата регистрации</th>
+                                <th>Действия</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for employer in pending_employers %}
+                            <tr>
+                                <td>
+                                    <strong>{{ employer.username }}</strong>
+                                </td>
+                                <td>{{ employer.email }}</td>
+                                <td>{{ employer.created_at.strftime('%d.%m.%Y в %H:%M') }}</td>
+                                <td>
+                                    <form method="POST" action="{{ url_for('approve_employer', user_id=employer.id) }}" class="d-inline"
+                                          onsubmit="return confirm('Одобрить работодателя {{ employer.username }}?')">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                        <button type="submit" class="btn btn-success btn-sm">
+                                            <i class="fas fa-check me-1"></i>Одобрить
+                                        </button>
+                                    </form>
+                                    <form method="POST" action="{{ url_for('delete_user', user_id=employer.id) }}" class="d-inline"
+                                          onsubmit="return confirm('Удалить работодателя {{ employer.username }}?')">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                        <button type="submit" class="btn btn-danger btn-sm">
+                                            <i class="fas fa-trash me-1"></i>Удалить
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Приглашения на собеседования -->
+{% if invitations %}
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">
+                    <i class="fas fa-handshake me-2"></i>
+                    Приглашения на собеседования
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Работодатель</th>
+                                <th>Студент</th>
+                                <th>Должность</th>
+                                <th>Статус</th>
+                                <th>Дата</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for invitation in invitations %}
+                            <tr>
+                                <td>
+                                    <strong>{{ invitation.employer.username }}</strong>
+                                    {% if invitation.employer.employer_profile %}
+                                        <br><small class="text-muted">{{ invitation.employer.employer_profile.company_name }}</small>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <strong>{{ invitation.student.username }}</strong>
+                                    {% if invitation.student.student_profile %}
+                                        <br><small class="text-muted">{{ invitation.student.student_profile.first_name }} {{ invitation.student.student_profile.last_name }}</small>
+                                    {% endif %}
+                                </td>
+                                <td>{{ invitation.position }}</td>
+                                <td>
+                                    {% if invitation.status == 'pending' %}
+                                        <span class="badge bg-warning">Ожидает</span>
+                                    {% elif invitation.status == 'accepted' %}
+                                        <span class="badge bg-success">Принято</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">Отклонено</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ invitation.created_at.strftime('%d.%m.%Y в %H:%M') }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Все пользователи -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center">
+                    <h5 class="mb-3 mb-md-0">
+                        <i class="fas fa-users me-2"></i>
+                        Все пользователи
+                    </h5>
+                    {% if users %}
+                        <div class="w-100 w-md-auto">
+                            <div class="input-group">
+                                <span class="input-group-text">
+                                    <i class="fas fa-search"></i>
+                                </span>
+                                <input type="text" class="form-control" id="userSearch"
+                                       placeholder="Поиск по имени пользователя или имени и фамилии..." autocomplete="off">
+                                <button class="btn btn-outline-secondary" type="button" id="clearUserSearch">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover" id="usersTable">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Имя пользователя</th>
+                                <th>Имя и фамилия</th>
+                                <th>Email</th>
+                                <th class="text-center">Роль</th>
+                                <th>Статус</th>
+                                <th>Дата регистрации</th>
+                                <th>Действия</th>
+                            </tr>
+                        </thead>
+                        <tbody id="usersTableBody">
+                            {% for user in users %}
+                            <tr class="user-row" data-username="{{ user.username|lower }}" data-fullname="{% if user.role == 'student' and user.student_profile %}{{ user.student_profile.first_name|lower }} {{ user.student_profile.last_name|lower }}{% elif user.role == 'employer' and user.employer_profile %}{{ user.employer_profile.contact_person|lower }}{% endif %}" data-user-id="{{ user.id }}">
+                                <td>{{ user.id }}</td>
+                                <td>
+                                    {% if user.role == 'student' %}
+                                        <a href="#" class="text-decoration-none student-profile-link" 
+                                           data-user-id="{{ user.id }}" 
+                                           data-username="{{ user.username }}">
+                                            <strong>{{ user.username }}</strong>
+                                        </a>
+                                    {% else %}
+                                        <strong>{{ user.username }}</strong>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if user.role == 'student' and user.student_profile %}
+                                        {{ user.student_profile.first_name }} {{ user.student_profile.last_name }}
+                                    {% elif user.role == 'employer' and user.employer_profile %}
+                                        {{ user.employer_profile.contact_person }}
+                                    {% else %}
+                                        -
+                                    {% endif %}
+                                </td>
+                                <td>{{ user.email }}</td>
+                                <td class="text-center">
+                                    {% if user.role == 'admin' %}
+                                        <span class="badge bg-danger">Администратор</span>
+                                    {% elif user.role == 'teacher' %}
+                                        <span class="badge bg-success">Учитель</span>
+                                    {% elif user.role == 'employer' %}
+                                        <span class="badge bg-warning">Работодатель</span>
+                                    {% else %}
+                                        <span class="badge bg-primary">Студент</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if user.is_approved %}
+                                        <span class="badge bg-success">
+                                            <i class="fas fa-check me-1"></i>Одобрен
+                                        </span>
+                                    {% else %}
+                                        <span class="badge bg-warning">
+                                            <i class="fas fa-clock me-1"></i>Ожидает
+                                        </span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ user.created_at.strftime('%d.%m.%Y в %H:%M') }}</td>
+                                <td>
+                                    {% if user.id != current_user.id %}
+                                        {% if not user.is_approved and user.role == 'teacher' %}
+                                            <form method="POST" action="{{ url_for('approve_teacher', user_id=user.id) }}" class="d-inline"
+                                                  onsubmit="return confirm('Одобрить учителя {{ user.username }}?')">
+                                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                                <button type="submit" class="btn btn-success btn-sm">
+                                                    <i class="fas fa-check me-1"></i>Одобрить
+                                                </button>
+                                            </form>
+                                        {% endif %}
+                                        <form method="POST" action="{{ url_for('delete_user', user_id=user.id) }}" class="d-inline"
+                                              onsubmit="return confirm('Удалить пользователя {{ user.username }}?')">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                            <button type="submit" class="btn btn-danger btn-sm">
+                                                <i class="fas fa-trash me-1"></i>Удалить
+                                            </button>
+                                        </form>
+                                    {% else %}
+                                        <span class="text-muted">Вы</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    <div id="hiddenUsersContainer" style="display: none;"></div>
+                    <div id="noUsersFound" class="text-center py-4" style="display: none;">
+                        <i class="fas fa-search fa-3x text-muted mb-3"></i>
+                        <h5 class="text-muted">Пользователи не найдены</h5>
+                        <p class="text-muted">Попробуйте изменить поисковый запрос.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Информация о системе -->
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-info-circle me-2"></i>
+                    Информация о системе
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6><i class="fas fa-cog text-primary me-2"></i>Функции администратора:</h6>
+                        <ul>
+                        <li>Одобрение регистраций учителей</li>
+                        <li>Удаление пользователей</li>
+                        <li>Просмотр всех пользователей</li>
+                        <li>Контроль доступа к системе</li>
+                        <li>Управление направлениями обучения</li>
+                        <li>Управление специализациями</li>
+                        </ul>
+                    </div>
+                    <div class="col-md-6">
+                        <h6><i class="fas fa-shield-alt text-success me-2"></i>Безопасность:</h6>
+                        <ul>
+                            <li>Все пароли хешируются</li>
+                            <li>Сессии защищены</li>
+                            <li>Доступ по ролям</li>
+                            <li>Логирование действий</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Модальное окно для просмотра профиля студента -->
+<div class="modal fade" id="studentProfileModal" tabindex="-1" aria-labelledby="studentProfileModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="studentProfileModalLabel">
+                    <i class="fas fa-user-graduate me-2"></i>
+                    Профиль студента
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+            </div>
+            <div class="modal-body" id="studentProfileContent">
+                <!-- Содержимое будет загружено динамически -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times me-1"></i>Закрыть
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<style>
+/* Увеличение ширины столбцов в таблице пользователей */
+.table th:nth-child(7), /* Дата регистрации */
+.table td:nth-child(7) {
+    min-width: 140px;
+    white-space: nowrap;
+}
+
+.table th:nth-child(8), /* Действия */
+.table td:nth-child(8) {
+    min-width: 120px;
+    white-space: nowrap;
+}
+
+/* Адаптивность для мобильных */
+@media (max-width: 768px) {
+    .table th:nth-child(7),
+    .table td:nth-child(7) {
+        min-width: 120px;
+        font-size: 0.85rem;
+    }
+    
+    .table th:nth-child(8),
+    .table td:nth-child(8) {
+        min-width: 100px;
+        font-size: 0.85rem;
+    }
+}
+
+@media (max-width: 576px) {
+    .table th:nth-child(7),
+    .table td:nth-child(7) {
+        min-width: 100px;
+        font-size: 0.8rem;
+    }
+    
+    .table th:nth-child(8),
+    .table td:nth-child(8) {
+        min-width: 80px;
+        font-size: 0.8rem;
+    }
+}
+
+/* Стили для поиска пользователей */
+.input-group {
+    max-width: 400px;
+}
+
+#userSearch {
+    border-right: none;
+    border-top: 1px solid #ced4da;
+    border-bottom: 1px solid #ced4da;
+}
+
+#clearUserSearch {
+    border-left: none;
+    border-top: 1px solid #ced4da;
+    border-bottom: 1px solid #ced4da;
+}
+
+.input-group-text {
+    border-top: 1px solid #ced4da;
+    border-bottom: 1px solid #ced4da;
+}
+
+#clearUserSearch:hover {
+    background-color: #f8f9fa;
+}
+
+.user-row {
+    transition: all 0.3s ease;
+}
+
+.user-row:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+#noUsersFound {
+    animation: fadeIn 0.3s ease-in-out;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Адаптивность для поиска */
+@media (max-width: 768px) {
+    .input-group {
+        max-width: 100%;
+    }
+}
+
+/* Стили для кликабельных ссылок профиля студента */
+.student-profile-link {
+    color: #007bff;
+    cursor: pointer;
+    transition: color 0.2s ease;
+}
+
+.student-profile-link:hover {
+    color: #0056b3;
+    text-decoration: underline !important;
+}
+
+.student-profile-link:focus {
+    outline: 2px solid #007bff;
+    outline-offset: 2px;
+    border-radius: 3px;
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('Админ панель загружена, JavaScript работает');
+
+    // Экранирование пользовательских данных перед вставкой в HTML (защита от DOM XSS)
+    function escapeHtml(value) {
+        return String(value ?? '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+    
+    // Проверим, есть ли ссылки профиля студентов
+    const studentLinks = document.querySelectorAll('.student-profile-link');
+    console.log('Найдено ссылок профиля студентов:', studentLinks.length);
+    studentLinks.forEach((link, index) => {
+        console.log(`Ссылка ${index + 1}:`, link.textContent.trim(), 'ID:', link.getAttribute('data-user-id'));
+    });
+    
+    const searchInput = document.getElementById('userSearch');
+    const clearButton = document.getElementById('clearUserSearch');
+    const userRows = document.querySelectorAll('.user-row');
+    const usersTableBody = document.getElementById('usersTableBody');
+    const hiddenUsersContainer = document.getElementById('hiddenUsersContainer');
+    const noUsersFound = document.getElementById('noUsersFound');
+
+    if (searchInput && userRows.length > 0) {
+        function filterUsers() {
+            const searchTerm = searchInput.value.toLowerCase().trim();
+            
+            // Сначала переместить все строки обратно в основную таблицу
+            userRows.forEach(row => {
+                if (row.parentNode !== usersTableBody) {
+                    usersTableBody.appendChild(row);
+                }
+            });
+
+            // Теперь фильтруем и сортируем
+            let visibleRows = [];
+            let hiddenRows = [];
+
+            userRows.forEach(row => {
+                const username = row.getAttribute('data-username');
+                const fullname = row.getAttribute('data-fullname') || '';
+                const userId = parseInt(row.getAttribute('data-user-id'));
+                
+                // Поиск по имени пользователя или имени и фамилии
+                const isMatch = username.includes(searchTerm) || fullname.includes(searchTerm);
+
+                if (isMatch) {
+                    visibleRows.push({ row: row, id: userId });
+                } else {
+                    hiddenRows.push(row);
+                }
+            });
+
+            // Сортировка видимых строк по ID (по возрастанию)
+            visibleRows.sort((a, b) => a.id - b.id);
+
+            // Очистить таблицу
+            usersTableBody.innerHTML = '';
+
+            // Добавить отсортированные видимые строки
+            visibleRows.forEach(item => {
+                usersTableBody.appendChild(item.row);
+            });
+
+            // Переместить скрытые строки в скрытый контейнер
+            hiddenRows.forEach(row => {
+                hiddenUsersContainer.appendChild(row);
+            });
+
+            if (visibleRows.length === 0 && searchTerm !== '') {
+                usersTableBody.style.display = 'none';
+                noUsersFound.style.display = 'block';
+            } else {
+                usersTableBody.style.display = 'table-row-group';
+                noUsersFound.style.display = 'none';
+            }
+
+            // Кнопка очистки всегда видна
+        }
+
+        searchInput.addEventListener('input', filterUsers);
+        
+        clearButton.addEventListener('click', function() {
+            searchInput.value = '';
+            filterUsers();
+            searchInput.focus();
+        });
+
+        searchInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                searchInput.value = '';
+                filterUsers();
+            }
+        });
+    }
+
+    // Обработка кликов по ссылкам профиля студента
+    document.addEventListener('click', function(e) {
+        // Проверяем, кликнули ли по ссылке или по её дочернему элементу
+        const linkElement = e.target.closest('.student-profile-link');
+        if (linkElement) {
+            e.preventDefault();
+            e.stopPropagation();
+            console.log('Клик по ссылке профиля студента');
+            const userId = linkElement.getAttribute('data-user-id');
+            const username = linkElement.getAttribute('data-username');
+            console.log('User ID:', userId, 'Username:', username);
+            showStudentProfile(userId, username);
+        }
+    });
+
+    function showStudentProfile(userId, username) {
+        console.log('showStudentProfile вызвана с userId:', userId, 'username:', username);
+        
+        // Проверим, существует ли модальное окно
+        const modalElement = document.getElementById('studentProfileModal');
+        console.log('Modal element:', modalElement);
+        
+        if (!modalElement) {
+            console.error('Модальное окно не найдено!');
+            alert('Ошибка: модальное окно не найдено');
+            return;
+        }
+        
+        // Показать модальное окно
+        console.log('Создаем Bootstrap Modal...');
+        const modal = new bootstrap.Modal(modalElement);
+        console.log('Modal object:', modal);
+        
+        // Обновить заголовок
+        const titleElement = document.getElementById('studentProfileModalLabel');
+        console.log('Title element:', titleElement);
+        if (titleElement) {
+            titleElement.innerHTML = 
+                `<i class="fas fa-user-graduate me-2"></i>Профиль студента: ${escapeHtml(username)}`;
+        }
+        
+        // Показать загрузку
+        const contentElement = document.getElementById('studentProfileContent');
+        console.log('Content element:', contentElement);
+        if (contentElement) {
+            contentElement.innerHTML = `
+                <div class="text-center py-4">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Загрузка...</span>
+                    </div>
+                    <p class="mt-3 text-muted">Загрузка профиля студента...</p>
+                </div>
+            `;
+        }
+        
+        console.log('Показываем модальное окно...');
+        modal.show();
+        
+        // Загрузить данные профиля (с отправкой cookies для авторизации)
+        fetch(`/admin/student-profile/${userId}`, { credentials: 'same-origin' })
+            .then(response => {
+                if (!response.ok) {
+                    return response.json().catch(() => ({ success: false, error: 'Ошибка сервера' }));
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.success) {
+                    displayStudentProfile(data.student);
+                } else {
+                    document.getElementById('studentProfileContent').innerHTML = `
+                        <div class="alert alert-danger">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            Ошибка загрузки профиля: ${escapeHtml(data.error || 'Неизвестная ошибка')}
+                        </div>
+                    `;
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                document.getElementById('studentProfileContent').innerHTML = `
+                    <div class="alert alert-danger">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        Ошибка загрузки профиля студента
+                    </div>
+                `;
+            });
+    }
+
+    function displayStudentProfile(student) {
+        const profile = student.profile;
+        const grades = student.grades || [];
+        const esc = escapeHtml;
+        let avgGrade = 0;
+        if (grades.length > 0) {
+            avgGrade = grades.reduce((sum, g) => sum + g.grade, 0) / grades.length;
+        }
+
+        const photoFilename = profile.photo_filename ? encodeURIComponent(profile.photo_filename) : '';
+        const content = `
+            <div class="row">
+                <div class="col-md-4 text-center mb-4">
+                    ${profile.photo_filename ? 
+                        `<img src="/uploads/${photoFilename}" class="img-fluid rounded-circle mb-3" style="width: 150px; height: 150px; object-fit: cover;" alt="Фото профиля">` :
+                        `<div class="bg-light rounded-circle d-flex align-items-center justify-content-center mb-3 mx-auto" style="width: 150px; height: 150px;">
+                            <i class="fas fa-user fa-3x text-muted"></i>
+                        </div>`
+                    }
+                    <h4 class="mb-1">${esc(profile.first_name)} ${esc(profile.last_name)}</h4>
+                    <p class="text-muted mb-0">@${esc(student.username)}</p>
+                </div>
+                <div class="col-md-8">
+                    <div class="row">
+                        <div class="col-sm-6 mb-3">
+                            <h6 class="text-primary mb-1"><i class="fas fa-id-card me-2"></i>Личная информация</h6>
+                            <p class="mb-1"><strong>Email:</strong> ${esc(student.email)}</p>
+                            <p class="mb-1"><strong>Телефон:</strong> ${esc(profile.phone || 'Не указан')}</p>
+                            <p class="mb-1"><strong>Дата рождения:</strong> ${profile.birth_date ? new Date(profile.birth_date).toLocaleDateString('ru-RU') : 'Не указана'}</p>
+                            <p class="mb-1"><strong>Адрес:</strong> ${esc(profile.address || 'Не указан')}</p>
+                        </div>
+                        <div class="col-sm-6 mb-3">
+                            <h6 class="text-success mb-1"><i class="fas fa-graduation-cap me-2"></i>Учебная информация</h6>
+                            <p class="mb-1"><strong>Группа:</strong> ${esc(profile.group ? profile.group.name : 'Не указана')}</p>
+                            <p class="mb-1"><strong>Форма обучения:</strong> ${esc(profile.study_form || 'Не указана')}</p>
+                            <p class="mb-1"><strong>Направление:</strong> ${esc(profile.direction ? profile.direction.name : 'Не указано')}</p>
+                            <p class="mb-1"><strong>Специализация:</strong> ${esc(profile.specialization ? profile.specialization.name : 'Не указана')}</p>
+                        </div>
+                    </div>
+                    
+                    ${profile.about_me ? `
+                        <div class="mb-3">
+                            <h6 class="text-info mb-1"><i class="fas fa-info-circle me-2"></i>О себе</h6>
+                            <p class="mb-0">${esc(profile.about_me)}</p>
+                        </div>
+                    ` : ''}
+                    
+                    <div class="row">
+                        <div class="col-sm-4 mb-3">
+                            <div class="card bg-primary text-white">
+                                <div class="card-body text-center">
+                                    <h5 class="card-title">${avgGrade.toFixed(1)}</h5>
+                                    <p class="card-text mb-0">Средняя оценка (звёзды)</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    ${grades.length > 0 ? `
+                        <div class="mt-4">
+                            <h6 class="text-warning mb-3"><i class="fas fa-chart-line me-2"></i>Последние оценки (${grades.length})</h6>
+                            <div class="table-responsive">
+                                <table class="table table-sm table-striped">
+                                    <thead>
+                                        <tr>
+                                            <th>Предмет</th>
+                                            <th>Оценка (звёзды)</th>
+                                            <th>Дата</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        ${grades.slice(-10).reverse().map(grade => `
+                                            <tr>
+                                                <td>${esc(grade.subject ? grade.subject.name : 'Не указан')}</td>
+                                                <td><span class="badge bg-primary">${grade.grade}</span></td>
+                                                <td>${new Date(grade.created_at).toLocaleDateString('ru-RU')}</td>
+                                            </tr>
+                                        `).join('')}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    ` : `
+                        <div class="alert alert-info mt-4">
+                            <i class="fas fa-info-circle me-2"></i>
+                            У студента пока нет оценок
+                        </div>
+                    `}
+                </div>
+            </div>
+        `;
+        
+        document.getElementById('studentProfileContent').innerHTML = content;
+    }
+});
+</script>
+{% endblock %}

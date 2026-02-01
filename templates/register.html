@@ -1,0 +1,167 @@
+{% extends "base.html" %}
+
+{% block title %}Регистрация - Система оценок{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8 col-lg-6">
+        <div class="card fade-in">
+            <div class="card-header text-white text-center" id="header" style="background-color: #198754;">
+                <h4 class="mb-0">
+                    <i class="fas fa-user-plus me-2"></i>
+                    Регистрация
+                </h4>
+            </div>
+            <div class="card-body">
+                <form method="POST">
+                    {% if form %}
+                        {{ form.hidden_tag() }}
+                    {% endif %}
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="username" class="form-label">
+                                <i class="fas fa-user me-1"></i>Имя пользователя
+                            </label>
+                            {% if form %}
+                                {{ form.username(class="form-control", id="username") }}
+                                {% if form.username.errors %}
+                                    <div class="text-danger small">
+                                        {% for error in form.username.errors %}
+                                            <div>{{ error }}</div>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            {% else %}
+                                <input type="text" class="form-control" id="username" name="username" required>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label for="email" class="form-label">
+                                <i class="fas fa-envelope me-1"></i>Email
+                            </label>
+                            {% if form %}
+                                {{ form.email(class="form-control", id="email") }}
+                                {% if form.email.errors %}
+                                    <div class="text-danger small">
+                                        {% for error in form.email.errors %}
+                                            <div>{{ error }}</div>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            {% else %}
+                                <input type="email" class="form-control" id="email" name="email" required>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="password" class="form-label">
+                            <i class="fas fa-lock me-1"></i>Пароль
+                        </label>
+                        <div class="input-group">
+                            {% if form %}
+                                {{ form.password(class="form-control", id="password") }}
+                            {% else %}
+                                <input type="password" class="form-control" id="password" name="password" required>
+                            {% endif %}
+                            <button class="btn btn-outline-secondary" type="button" onclick="togglePassword('password')">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                        </div>
+                        {% if form and form.password.errors %}
+                            <div class="text-danger small">
+                                {% for error in form.password.errors %}
+                                    <div>{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                        {% if form %}
+                            <small class="form-text text-muted">
+                                Пароль должен быть не менее 8 символов и содержать заглавные и строчные буквы, а также цифры
+                            </small>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="role" class="form-label">
+                            <i class="fas fa-user-tag me-1"></i>Роль
+                        </label>
+                        {% if form %}
+                            {{ form.role(class="form-select", id="role") }}
+                            {% if form.role.errors %}
+                                <div class="text-danger small">
+                                    {% for error in form.role.errors %}
+                                        <div>{{ error }}</div>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        {% else %}
+                            <select class="form-select" id="role" name="role" required>
+                                <option value="">Выберите роль</option>
+                                <option value="student" {% if selected_role == 'student' %}selected{% endif %}>Студент</option>
+                                <option value="teacher" {% if selected_role == 'teacher' %}selected{% endif %}>Учитель</option>
+                                <option value="employer" {% if selected_role == 'employer' %}selected{% endif %}>Работодатель</option>
+                            </select>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <strong>Важно:</strong> Студенты регистрируются автоматически, 
+                        а учителям и работодателям требуется одобрение администратора.
+                    </div>
+                    
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-success btn-lg">
+                            <i class="fas fa-user-plus me-2"></i>Зарегистрироваться
+                        </button>
+                    </div>
+                </form>
+            </div>
+            <div class="card-footer text-center">
+                <p class="mb-0">
+                    Уже есть аккаунт? 
+                    <a href="{{ url_for('login') }}" class="text-decoration-none">
+                        Войти
+                    </a>
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const roleSelect = document.getElementById('role');
+    const header = document.getElementById('header');
+    
+    // Функция для изменения цвета шапки
+    function updateHeaderColor() {
+        const selectedRole = roleSelect.value;
+        
+        switch(selectedRole) {
+            case 'student':
+                header.style.backgroundColor = '#0d6efd';
+                break;
+            case 'teacher':
+                header.style.backgroundColor = '#198754';
+                break;
+            case 'employer':
+                header.style.backgroundColor = '#ffc107';
+                break;
+            default:
+                header.style.backgroundColor = '#198754'; // По умолчанию зеленый
+        }
+    }
+    
+    // Обработчик изменения роли
+    roleSelect.addEventListener('change', updateHeaderColor);
+    
+    // Устанавливаем цвет при загрузке страницы
+    updateHeaderColor();
+});
+</script>
+{% endblock %}

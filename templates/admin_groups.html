@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+
+{% block title %}Управление группами - Админ-панель{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2>
+                <i class="fas fa-users me-2"></i>
+                Управление группами
+            </h2>
+            <a href="{{ url_for('admin_dashboard') }}" class="btn btn-secondary">
+                <i class="fas fa-arrow-left me-2"></i>Назад к админ-панели
+            </a>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-plus me-2"></i>
+                    Добавить группу
+                </h5>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('add_group') }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                    <div class="mb-3">
+                        <label for="name" class="form-label">Название группы</label>
+                        <input type="text" class="form-control" id="name" name="name" required>
+                        <div class="form-text">Например: ИС-21, ПИ-22, МТ-23</div>
+                    </div>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-plus me-2"></i>Добавить группу
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-list me-2"></i>
+                    Список групп
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if groups %}
+                    <div class="list-group">
+                        {% for group in groups %}
+                        <div class="list-group-item d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="mb-1">{{ group.name }}</h6>
+                                <small class="text-muted">Создана: {{ group.created_at.strftime('%d.%m.%Y') }}</small>
+                            </div>
+                            <div>
+                                <span class="badge bg-primary me-2">{{ group.students|length }} студентов</span>
+                                <form method="POST" action="{{ url_for('delete_group', group_id=group.id) }}" class="d-inline"
+                                      onsubmit="return confirm('Вы уверены, что хотите удалить группу {{ group.name }}?')">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                    <button type="submit" class="btn btn-sm btn-outline-danger">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="text-center text-muted">
+                        <i class="fas fa-users fa-3x mb-3"></i>
+                        <p>Группы не добавлены</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

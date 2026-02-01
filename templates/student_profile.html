@@ -1,0 +1,234 @@
+{% extends "base.html" %}
+
+{% block title %}Профиль студента - Система оценок{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card fade-in">
+            <div class="card-header bg-primary text-white">
+                <h4 class="mb-0">
+                    <i class="fas fa-user-edit me-2"></i>
+                    {% if profile %}Редактирование профиля{% else %}Создание профиля{% endif %}
+                </h4>
+            </div>
+            <div class="card-body">
+                <form method="POST" enctype="multipart/form-data">
+                    {% if form %}
+                        {{ form.hidden_tag() }}
+                    {% endif %}
+                    <!-- Фото профиля -->
+                    <div class="row mb-4">
+                        <div class="col-md-4">
+                            <div class="text-center">
+                                {% if profile and profile.photo_filename %}
+                                    <img src="{{ url_for('uploaded_file', filename=profile.photo_filename) }}" 
+                                         alt="Фото профиля" class="profile-photo-preview mb-3">
+                                {% else %}
+                                    <div class="profile-photo-placeholder mb-3">
+                                        <i class="fas fa-user fa-3x text-muted"></i>
+                                    </div>
+                                {% endif %}
+                                <input type="file" class="form-control" id="photo" name="photo" 
+                                       accept="image/*" onchange="previewPhoto(this)">
+                                <div class="form-text">Загрузите фото профиля (JPG, PNG, GIF)</div>
+                            </div>
+                        </div>
+                        <div class="col-md-8">
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="first_name" class="form-label">
+                                        <i class="fas fa-user me-1"></i>Имя *
+                                    </label>
+                                    <input type="text" class="form-control" id="first_name" name="first_name" 
+                                           value="{{ profile.first_name if profile else '' }}" required>
+                                </div>
+                                
+                                <div class="col-md-6 mb-3">
+                                    <label for="last_name" class="form-label">
+                                        <i class="fas fa-user me-1"></i>Фамилия *
+                                    </label>
+                                    <input type="text" class="form-control" id="last_name" name="last_name" 
+                                           value="{{ profile.last_name if profile else '' }}" required>
+                                </div>
+                            </div>
+                            
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="group_id" class="form-label">
+                                        <i class="fas fa-users me-1"></i>Группа *
+                                    </label>
+                                    <select class="form-select" id="group_id" name="group_id" required>
+                                        <option value="">Выберите группу</option>
+                                        {% for group in groups %}
+                                            <option value="{{ group.id }}" 
+                                                    {% if profile and profile.group_id == group.id %}selected{% endif %}>
+                                                {{ group.name }}
+                                            </option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                
+                                <div class="col-md-6 mb-3">
+                                    <label for="study_form" class="form-label">
+                                        <i class="fas fa-graduation-cap me-1"></i>Форма обучения
+                                    </label>
+                                    <select class="form-select" id="study_form" name="study_form">
+                                        <option value="">Выберите форму обучения</option>
+                                        <option value="очная" {% if profile and profile.study_form == 'очная' %}selected{% endif %}>Очная</option>
+                                        <option value="заочная" {% if profile and profile.study_form == 'заочная' %}selected{% endif %}>Заочная</option>
+                                        <option value="дистанционная" {% if profile and profile.study_form == 'дистанционная' %}selected{% endif %}>Дистанционная</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="phone" class="form-label">
+                                <i class="fas fa-phone me-1"></i>Телефон
+                            </label>
+                            <input type="tel" class="form-control" id="phone" name="phone" 
+                                   value="{{ profile.phone if profile else '' }}"
+                                   placeholder="+7 (999) 123-45-67">
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label for="birth_date" class="form-label">
+                                <i class="fas fa-calendar me-1"></i>Дата рождения
+                            </label>
+                            <input type="date" class="form-control" id="birth_date" name="birth_date" 
+                                   value="{{ profile.birth_date.strftime('%Y-%m-%d') if profile and profile.birth_date else '' }}">
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="desired_direction_id" class="form-label">
+                                <i class="fas fa-compass me-1"></i>Желаемое направление
+                            </label>
+                            <select class="form-select" id="desired_direction_id" name="desired_direction_id">
+                                <option value="">Выберите направление</option>
+                                {% for direction in directions %}
+                                    <option value="{{ direction.id }}" 
+                                            {% if profile and profile.desired_direction_id == direction.id %}selected{% endif %}>
+                                        {{ direction.name }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label for="desired_specialization_id" class="form-label">
+                                <i class="fas fa-tools me-1"></i>Желаемая специализация
+                            </label>
+                            <select class="form-select" id="desired_specialization_id" name="desired_specialization_id">
+                                <option value="">Выберите специализацию</option>
+                                {% for specialization in specializations %}
+                                    <option value="{{ specialization.id }}" 
+                                            {% if profile and profile.desired_specialization_id == specialization.id %}selected{% endif %}>
+                                        {{ specialization.name }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="address" class="form-label">
+                            <i class="fas fa-map-marker-alt me-1"></i>Адрес
+                        </label>
+                        <textarea class="form-control" id="address" name="address" rows="2" 
+                                  placeholder="Укажите ваш домашний адрес">{{ profile.address if profile else '' }}</textarea>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="about_me" class="form-label">
+                            <i class="fas fa-heart me-1"></i>Немного о себе (хобби, достижения, мотивация)
+                        </label>
+                        <textarea class="form-control" id="about_me" name="about_me" rows="4" 
+                                  placeholder="Расскажите о своих интересах, достижениях и мотивации к обучению">{{ profile.about_me if profile else '' }}</textarea>
+                    </div>
+                    
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <strong>Информация:</strong> Поля, отмеченные звездочкой (*), обязательны для заполнения.
+                    </div>
+                    
+                    <div class="d-flex justify-content-between">
+                        <a href="{{ url_for('student_dashboard') }}" class="btn btn-secondary">
+                            <i class="fas fa-arrow-left me-2"></i>Назад
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save me-2"></i>
+                            {% if profile %}Сохранить изменения{% else %}Создать профиль{% endif %}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        
+        {% if profile %}
+        <div class="card mt-3">
+            <div class="card-body">
+                <h6 class="card-title">
+                    <i class="fas fa-info-circle me-2"></i>
+                    Информация о профиле
+                </h6>
+                <div class="row">
+                    <div class="col-md-6">
+                        <p><strong>Создан:</strong> {{ profile.created_at.strftime('%d.%m.%Y в %H:%M') }}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <p><strong>Последнее обновление:</strong> {{ profile.created_at.strftime('%d.%m.%Y в %H:%M') }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function previewPhoto(input) {
+    if (input.files && input.files[0]) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const preview = document.querySelector('.profile-photo-preview');
+            const placeholder = document.querySelector('.profile-photo-placeholder');
+            
+            if (preview) {
+                preview.src = e.target.result;
+            } else if (placeholder) {
+                placeholder.innerHTML = `<img src="${e.target.result}" alt="Фото профиля" class="profile-photo-preview mb-3">`;
+            }
+        };
+        reader.readAsDataURL(input.files[0]);
+    }
+}
+</script>
+
+<style>
+.profile-photo-preview {
+    width: 150px;
+    height: 150px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 3px solid #007bff;
+}
+
+.profile-photo-placeholder {
+    width: 150px;
+    height: 150px;
+    border-radius: 50%;
+    border: 3px dashed #dee2e6;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto;
+}
+</style>
+{% endblock %}

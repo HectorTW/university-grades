@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+
+{% block title %}Управление предметами - Админ-панель{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2>
+                <i class="fas fa-book me-2"></i>
+                Управление предметами
+            </h2>
+            <a href="{{ url_for('admin_dashboard') }}" class="btn btn-secondary">
+                <i class="fas fa-arrow-left me-2"></i>Назад к админ-панели
+            </a>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-plus me-2"></i>
+                    Добавить предмет
+                </h5>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('add_subject') }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                    <div class="mb-3">
+                        <label for="name" class="form-label">Название предмета</label>
+                        <input type="text" class="form-control" id="name" name="name" required>
+                        <div class="form-text">Например: Математика, Физика, Программирование</div>
+                    </div>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-plus me-2"></i>Добавить предмет
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-list me-2"></i>
+                    Список предметов
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if subjects %}
+                    <div class="list-group">
+                        {% for subject in subjects %}
+                        <div class="list-group-item d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="mb-1">{{ subject.name }}</h6>
+                                <small class="text-muted">Создан: {{ subject.created_at.strftime('%d.%m.%Y') }}</small>
+                            </div>
+                            <div>
+                                <span class="badge bg-primary me-2">{{ subject.grades|length }} оценок</span>
+                                <form method="POST" action="{{ url_for('delete_subject', subject_id=subject.id) }}" class="d-inline"
+                                      onsubmit="return confirm('Вы уверены, что хотите удалить предмет {{ subject.name }}?')">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                    <button type="submit" class="btn btn-sm btn-outline-danger">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="text-center text-muted">
+                        <i class="fas fa-book fa-3x mb-3"></i>
+                        <p>Предметы не добавлены</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
