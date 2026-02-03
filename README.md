@@ -45,7 +45,7 @@
 ## 🛠️ Технологии
 
 - **Backend**: Python Flask 2.3.3
-- **База данных**: SQLite (с миграциями через Flask-Migrate)
+- **База данных**: PostgreSQL (с миграциями через Flask-Migrate)
 - **Frontend**: HTML5, CSS3, JavaScript, Bootstrap 5
 - **Аутентификация**: Flask-Login
 - **Безопасность**: Flask-WTF (CSRF), Flask-Limiter (rate limiting), Flask-Talisman (security headers)
@@ -68,8 +68,13 @@ pip install -r requirements.txt
 SECRET_KEY=your-secret-key-here
 FLASK_DEBUG=True
 APP_ENV=development
-DATABASE_URL=sqlite:///school_grades.db
+DATABASE_URL=postgresql://user:password@localhost:5432/school_grades
 ```
+
+Перед первым запуском:
+1. Установите PostgreSQL и создайте базу: `createdb school_grades`
+2. Укажите в `DATABASE_URL` пользователя и пароль.
+3. Примените миграции: `python -m flask db upgrade`
 
 **Генерация SECRET_KEY:**
 ```bash
@@ -165,7 +170,7 @@ waitress-serve --host=0.0.0.0 --port=8000 wsgi:app
 
 ## 🗄️ База данных
 
-Приложение использует SQLite базу данных с следующими таблицами:
+Приложение использует **PostgreSQL** с следующими таблицами:
 
 - **User** - пользователи системы (студенты, учителя, админы, работодатели)
 - **StudentProfile** - профили студентов (включая фото, форму обучения, направления)

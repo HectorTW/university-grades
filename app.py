@@ -31,7 +31,11 @@ app.config['APP_ENV'] = APP_ENV
 
 # Конфигурация из переменных окружения
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', os.urandom(32).hex())
-app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'sqlite:///school_grades.db')
+database_url = os.getenv('DATABASE_URL', 'postgresql://localhost:5432/school_grades')
+# Heroku и некоторые хосты отдают postgres:// — SQLAlchemy требует postgresql://
+if database_url.startswith('postgres://'):
+    database_url = database_url.replace('postgres://', 'postgresql://', 1)
+app.config['SQLALCHEMY_DATABASE_URI'] = database_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['UPLOAD_FOLDER'] = 'static/uploads'
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size

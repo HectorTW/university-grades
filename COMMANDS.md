@@ -283,14 +283,14 @@ type nul > logs/app.log  # Windows
 ### Просмотр структуры базы данных
 
 ```bash
-# Использовать SQLite CLI
-sqlite3 instance/school_grades.db
+# Подключиться к PostgreSQL (имя БД из DATABASE_URL, обычно school_grades)
+psql -U user -d school_grades
 
-# В SQLite CLI:
-.tables                    # Показать все таблицы
-.schema users              # Показать схему таблицы users
-SELECT * FROM users;       # Показать всех пользователей
-.quit                      # Выйти
+# В psql:
+\dt                        # Список таблиц
+\d users                   # Схема таблицы users
+SELECT * FROM "user";      # Показать всех пользователей (таблица user в кавычках)
+\q                         # Выйти
 ```
 
 ---
@@ -336,8 +336,8 @@ cp requirements.txt requirements.txt.backup
 safety check
 pip-audit --rate-limit 20
 
-# 3. Создайте backup базы данных
-cp instance/school_grades.db instance/school_grades.db.backup
+# 3. Создайте backup базы данных (PostgreSQL)
+pg_dump -U user school_grades > backup_$(date +%Y%m%d).sql
 
 # 4. Примените миграции
 python -m flask db upgrade
@@ -433,26 +433,26 @@ flake8 --ignore=E501,W503 app.py
 
 ---
 
-## 💾 Backup и восстановление
+## 💾 Backup и восстановление (PostgreSQL)
 
 ### Backup базы данных
 
 ```bash
-# Создать backup SQLite базы данных
-cp instance/school_grades.db instance/school_grades.db.backup_$(date +%Y%m%d_%H%M%S)
+# Дамп в файл (подставьте пользователя и имя БД из DATABASE_URL)
+pg_dump -U user school_grades > backup_$(date +%Y%m%d_%H%M%S).sql
 
-# Или через SQLite
-sqlite3 instance/school_grades.db ".backup 'instance/backup.db'"
+# Сжатый дамп
+pg_dump -U user -Fc school_grades > backup.dump
 ```
 
 ### Восстановление из backup
 
 ```bash
-# Восстановить из backup
-cp instance/school_grades.db.backup instance/school_grades.db
+# Восстановить из SQL-дампера
+psql -U user -d school_grades < backup_YYYYMMDD.sql
 
-# Или через SQLite
-sqlite3 instance/school_grades.db ".restore 'instance/backup.db'"
+# Из custom формата (-Fc)
+pg_restore -U user -d school_grades backup.dump
 ```
 
 ---

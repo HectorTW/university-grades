@@ -255,8 +255,8 @@ SECRET_KEY=your-generated-secret-key-here
 FLASK_DEBUG=True
 APP_ENV=development
 
-# База данных
-DATABASE_URL=sqlite:///school_grades.db
+# База данных (PostgreSQL)
+DATABASE_URL=postgresql://user:password@localhost:5432/school_grades
 
 # Настройки безопасности сессий
 SESSION_COOKIE_SECURE=False  # True в production с HTTPS
