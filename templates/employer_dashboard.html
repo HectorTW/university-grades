@@ -19,6 +19,12 @@
                 </a>
             </div>
         </div>
+        {% if not has_employer_profile %}
+        <div class="alert alert-warning" role="alert">
+            <i class="fas fa-exclamation-triangle me-2"></i>
+            Чтобы отправлять приглашения студентам, сначала заполните <a href="{{ url_for('employer_profile') }}" class="alert-link">профиль компании</a>.
+        </div>
+        {% endif %}
     </div>
 </div>
 
@@ -26,37 +32,29 @@
 <div class="row mb-4">
     <div class="col-md-3">
         <div class="stats-card">
-            <div class="stats-number">
-                {{ students|length }}
-            </div>
+            <div class="stats-number" id="stat-students-count">{{ students|length }}</div>
             <div>Студентов</div>
         </div>
     </div>
     
     <div class="col-md-3">
         <div class="stats-card">
-            <div class="stats-number">
-                <i class="fas fa-search"></i>
-            </div>
-            <div>Поиск талантов</div>
+            <div class="stats-number" id="stat-invitations-sent">{{ invitations_sent_count }}</div>
+            <div>Отправлено приглашений</div>
         </div>
     </div>
     
     <div class="col-md-3">
         <div class="stats-card">
-            <div class="stats-number">
-                <i class="fas fa-handshake"></i>
-            </div>
-            <div>Приглашения</div>
+            <div class="stats-number" id="stat-invitations-quota">{{ invitations_quota }}</div>
+            <div>Лимит приглашений</div>
         </div>
     </div>
     
     <div class="col-md-3">
         <div class="stats-card">
-            <div class="stats-number">
-                <i class="fas fa-star"></i>
-            </div>
-            <div>Лучшие кандидаты</div>
+            <div class="stats-number" id="stat-invitations-remaining">{{ invitations_remaining }}</div>
+            <div>Осталось приглашений</div>
         </div>
     </div>
 </div>
@@ -203,8 +201,25 @@
 {% block scripts %}
 <!-- Скрытые данные для JavaScript -->
 <script type="application/json" id="students-data">{{ students_for_js|tojson|safe }}</script>
+<script type="application/json" id="token-catalog">{{ token_catalog|tojson|safe }}</script>
 
 <script>
+// Флаг: может ли работодатель отправлять приглашения (профиль компании заполнен)
+const CAN_SEND_INVITATIONS = {{ 'true' if has_employer_profile else 'false' }};
+let invitationsSentCount = {{ invitations_sent_count }};
+let invitationsQuota = {{ invitations_quota }};
+let invitationsRemaining = {{ invitations_remaining }};
+
+function updateInvitationStatsUI() {
+    invitationsRemaining = Math.max(invitationsQuota - invitationsSentCount, 0);
+    const sentEl = document.getElementById('stat-invitations-sent');
+    const quotaEl = document.getElementById('stat-invitations-quota');
+    const remainingEl = document.getElementById('stat-invitations-remaining');
+    if (sentEl) sentEl.textContent = invitationsSentCount;
+    if (quotaEl) quotaEl.textContent = invitationsQuota;
+    if (remainingEl) remainingEl.textContent = invitationsRemaining;
+}
+
 // Получение данных студентов
 const studentsDataElement = document.getElementById('students-data');
 let currentStudents = [];
@@ -213,6 +228,15 @@ try {
 } catch (e) {
     console.error('Ошибка парсинга данных студентов:', e);
     currentStudents = [];
+}
+
+const tokenCatalogEl = document.getElementById('token-catalog');
+let tokenCatalog = [];
+try {
+    tokenCatalog = JSON.parse(tokenCatalogEl ? tokenCatalogEl.textContent : '[]') || [];
+} catch (e) {
+    console.error('Ошибка парсинга каталога жетонов:', e);
+    tokenCatalog = [];
 }
 
 // Экранирование пользовательских данных перед вставкой в HTML (защита от DOM XSS)
@@ -226,12 +250,20 @@ function escapeHtml(value) {
 }
 
 function openInvitationModal(studentId, studentName) {
+    if (!CAN_SEND_INVITATIONS) {
+        alert('Сначала заполните профиль компании, чтобы отправлять приглашения.');
+        return;
+    }
     document.getElementById('student_id').value = studentId;
     document.querySelector('#invitationModal .modal-title').textContent = `Отправить приглашение ${studentName}`;
     new bootstrap.Modal(document.getElementById('invitationModal')).show();
 }
 
 function sendInvitation() {
+    if (!CAN_SEND_INVITATIONS) {
+        alert('Сначала заполните профиль компании, чтобы отправлять приглашения.');
+        return;
+    }
     const studentIdVal = document.getElementById('student_id').value;
     const formData = {
         student_id: parseInt(studentIdVal, 10),
@@ -262,6 +294,42 @@ function sendInvitation() {
     .then(data => {
         if (data.success) {
             alert('Приглашение успешно отправлено!');
+            // Обновляем локальный счётчик и UI без перезагрузки страницы
+            invitationsSentCount += 1;
+            updateInvitationStatsUI();
+
+            // Помечаем студента как уже приглашённого в локальных данных
+            const invitedId = formData.student_id;
+            currentStudents = currentStudents.map(s =>
+                s.id === invitedId ? { ...s, already_invited: true } : s
+            );
+
+            // Перестраиваем текущий вид (карточки/таблица), чтобы обновить кнопки «Пригласить»
+            try {
+                const viewMode = document.querySelector('input[name="view_mode"]:checked')?.value || 'cards';
+                if (viewMode === 'cards') {
+                    const container = document.getElementById('students_cards');
+                    if (container) {
+                        container.innerHTML = '';
+                        currentStudents.forEach(student => {
+                            const card = createCardElement(student);
+                            container.appendChild(card);
+                        });
+                    }
+                } else {
+                    const tbody = document.querySelector('#students_table tbody');
+                    if (tbody) {
+                        tbody.innerHTML = '';
+                        currentStudents.forEach(student => {
+                            const row = createRowElement(student);
+                            tbody.appendChild(row);
+                        });
+                    }
+                }
+            } catch (e) {
+                console.error('Ошибка при обновлении списка студентов после приглашения:', e);
+            }
+
             bootstrap.Modal.getInstance(document.getElementById('invitationModal')).hide();
             document.getElementById('invitationForm').reset();
         } else {
@@ -349,9 +417,13 @@ document.addEventListener('DOMContentLoaded', function() {
             `<button class="btn btn-secondary btn-sm mt-3" disabled>
                 <i class="fas fa-check me-1"></i>Приглашение отправлено
             </button>` :
-            `<button class="btn btn-primary btn-sm mt-3 invite-btn" data-student-id="${student.id}" data-student-name="${encodeURIComponent(student.name || '')}">
-                <i class="fas fa-envelope me-1"></i>Пригласить
-            </button>`;
+            (CAN_SEND_INVITATIONS
+                ? `<button class="btn btn-primary btn-sm mt-3 invite-btn" data-student-id="${student.id}" data-student-name="${encodeURIComponent(student.name || '')}">
+                        <i class="fas fa-envelope me-1"></i>Пригласить
+                   </button>`
+                : `<button class="btn btn-secondary btn-sm mt-3" disabled title="Сначала заполните профиль компании">
+                        <i class="fas fa-ban me-1"></i>Профиль не заполнен
+                   </button>`);
         
         const charsHtml = (student.characteristics || []).map(c => {
             const v = Math.max(0, Math.min(100, Number(c.value) || 0));
@@ -367,13 +439,15 @@ document.addEventListener('DOMContentLoaded', function() {
                 </div>
             `;
         }).join('');
-        const tokenTypes = ['Упорство', 'Трудолюбие', 'Понимание', 'Подготовка', 'Креатив', 'Скорость'];
-        const tokensHtml = tokenTypes.map(t => {
-            const cnt = (student.token_counts && Number(student.token_counts[t])) ? Number(student.token_counts[t]) : 0;
-            const src = `/static/icons/${encodeURIComponent(t)}.png`;
+        const tokensHtml = tokenCatalog.map(t => {
+            const name = t.name;
+            const cnt = (student.token_counts && Number(student.token_counts[name])) ? Number(student.token_counts[name]) : 0;
+            const src = `/static/icons/${encodeURIComponent(t.icon)}`;
+            const tip = escapeHtml(t.description || name);
+            const alt = escapeHtml(name);
             return `
-                <div class="student-token-item ${cnt > 0 ? 'has' : 'zero'}" title="${t}">
-                    <img class="student-token-icon" src="${src}" alt="${t}">
+                <div class="student-token-item ${cnt > 0 ? 'has' : 'zero'}" title="${tip}">
+                    <img class="student-token-icon" src="${src}" alt="${alt}">
                     <div class="student-token-count">×${cnt}</div>
                 </div>
             `;
@@ -465,9 +539,13 @@ document.addEventListener('DOMContentLoaded', function() {
             `<button class="btn btn-secondary btn-sm" disabled>
                 <i class="fas fa-check me-1"></i>Отправлено
             </button>` :
-            `<button class="btn btn-primary btn-sm invite-btn" data-student-id="${student.id}" data-student-name="${encodeURIComponent(student.name || '')}">
-                <i class="fas fa-envelope me-1"></i>Пригласить
-            </button>`;
+            (CAN_SEND_INVITATIONS
+                ? `<button class="btn btn-primary btn-sm invite-btn" data-student-id="${student.id}" data-student-name="${encodeURIComponent(student.name || '')}">
+                        <i class="fas fa-envelope me-1"></i>Пригласить
+                   </button>`
+                : `<button class="btn btn-secondary btn-sm" disabled title="Сначала заполните профиль компании">
+                        <i class="fas fa-ban me-1"></i>Профиль не заполнен
+                   </button>`);
         
         // Добавляем класс для серого цвета, если приглашение уже отправлено
         if (student.already_invited) {
@@ -496,13 +574,15 @@ document.addEventListener('DOMContentLoaded', function() {
                 </div>
             `;
         }).join('') || `<div class="text-muted small">—</div>`;
-        const tokenTypes = ['Упорство', 'Трудолюбие', 'Понимание', 'Подготовка', 'Креатив', 'Скорость'];
-        const tokensHtml = tokenTypes.map(t => {
-            const cnt = (student.token_counts && Number(student.token_counts[t])) ? Number(student.token_counts[t]) : 0;
-            const src = `/static/icons/${encodeURIComponent(t)}.png`;
+        const tokensHtml = tokenCatalog.map(t => {
+            const name = t.name;
+            const cnt = (student.token_counts && Number(student.token_counts[name])) ? Number(student.token_counts[name]) : 0;
+            const src = `/static/icons/${encodeURIComponent(t.icon)}`;
+            const tip = escapeHtml(t.description || name);
+            const alt = escapeHtml(name);
             return `
-                <div class="table-token ${cnt > 0 ? 'has' : 'zero'}" title="${t}">
-                    <img class="table-token-icon" src="${src}" alt="${t}">
+                <div class="table-token ${cnt > 0 ? 'has' : 'zero'}" title="${tip}">
+                    <img class="table-token-icon" src="${src}" alt="${alt}">
                     <div class="table-token-count">×${cnt}</div>
                 </div>
             `;

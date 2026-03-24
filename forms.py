@@ -1,5 +1,5 @@
 from flask_wtf import FlaskForm
-from wtforms import StringField, EmailField, PasswordField, SelectField, TextAreaField, IntegerField, DateField
+from wtforms import StringField, EmailField, PasswordField, SelectField, TextAreaField, IntegerField, DateField, BooleanField
 from wtforms.validators import DataRequired, Length, Email, Regexp, NumberRange, Optional, URL
 
 class RegistrationForm(FlaskForm):
@@ -8,6 +8,10 @@ class RegistrationForm(FlaskForm):
         Length(min=3, max=80, message='Имя пользователя должно быть от 3 до 80 символов'),
         Regexp(r'^[a-zA-Z0-9_]+$', message='Имя пользователя может содержать только буквы, цифры и _')
     ])
+    accept_terms = BooleanField(
+        'Согласие с условиями',
+        validators=[DataRequired(message='Для регистрации необходимо принять условия и политику конфиденциальности')]
+    )
     email = EmailField('Email', validators=[
         DataRequired(message='Email обязателен'),
         Email(message='Некорректный email адрес'),

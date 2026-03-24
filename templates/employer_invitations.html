@@ -27,7 +27,7 @@
     <div class="col-6 col-md-3 mb-3">
         <div class="stats-card">
             <div class="stats-number">
-                {{ invitations|length }}
+                {{ invitations_sent_count }}
             </div>
             <div>Всего отправлено</div>
         </div>
@@ -57,6 +57,24 @@
                 {{ invitations|selectattr('status', 'equalto', 'declined')|list|length }}
             </div>
             <div>Отклонены</div>
+        </div>
+    </div>
+    
+    <div class="col-6 col-md-3 mb-3">
+        <div class="stats-card">
+            <div class="stats-number">
+                {{ invitations_quota }}
+            </div>
+            <div>Лимит приглашений</div>
+        </div>
+    </div>
+    
+    <div class="col-6 col-md-3 mb-3">
+        <div class="stats-card">
+            <div class="stats-number">
+                {{ invitations_remaining }}
+            </div>
+            <div>Осталось приглашений</div>
         </div>
     </div>
 </div>

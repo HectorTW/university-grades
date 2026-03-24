@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+
+{% block title %}Правила работы сайта{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h2 class="mb-3">
+            <i class="fas fa-list-check me-2"></i>
+            Правила работы сайта
+        </h2>
+        <p class="text-muted mb-4">Базовые правила использования сервиса «Система оценок» для соискателей, работодателей и экспертов.</p>
+
+        <ul class="nav nav-tabs mb-3" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="rules-student-tab" data-bs-toggle="tab" data-bs-target="#rules-student" type="button" role="tab">
+                    Соискателю
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="rules-employer-tab" data-bs-toggle="tab" data-bs-target="#rules-employer" type="button" role="tab">
+                    Работодателю
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="rules-expert-tab" data-bs-toggle="tab" data-bs-target="#rules-expert" type="button" role="tab">
+                    Эксперту
+                </button>
+            </li>
+        </ul>
+
+        <div class="tab-content border rounded-3 p-3">
+            <div class="tab-pane fade show active" id="rules-student" role="tabpanel">
+                <ol>
+                    <li>Используйте реальные и актуальные данные в профиле.</li>
+                    <li>Не публикуйте оскорбительные, экстремистские или иные недопустимые материалы.</li>
+                    <li>Не передавайте свои учётные данные третьим лицам.</li>
+                    <li>Относитесь уважительно к преподавателям, работодателям и другим пользователям сервиса.</li>
+                </ol>
+            </div>
+
+            <div class="tab-pane fade" id="rules-employer" role="tabpanel">
+                <ol>
+                    <li>Используйте сервис исключительно для поиска и оценки кандидатов.</li>
+                    <li>Не запрашивайте у студентов персональные данные сверх необходимых для трудоустройства.</li>
+                    <li>Не рассылайте массовые неперсонализированные сообщения (спам).</li>
+                    <li>Соблюдайте деловую этику и корректный тон общения.</li>
+                </ol>
+            </div>
+
+            <div class="tab-pane fade" id="rules-expert" role="tabpanel">
+                <ol>
+                    <li>Выставляйте оценки объективно и обоснованно.</li>
+                    <li>Не используйте сервис для публичного унижения студентов.</li>
+                    <li>Не передавайте доступ к системе третьим лицам.</li>
+                    <li>Соблюдайте требования локальных актов и законодательства в части обработки персональных данных.</li>
+                </ol>
+            </div>
+        </div>
+
+        <p class="mt-4 text-muted small">
+            Нарушение правил может привести к ограничению доступа или блокировке аккаунта по решению администратора сервиса.
+        </p>
+    </div>
+</div>
+{% endblock %}
+

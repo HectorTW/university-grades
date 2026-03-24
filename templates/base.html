@@ -169,15 +169,42 @@
                 </div>
             </div>
             <hr class="my-3">
-            <div class="row">
-                <div class="col-md-8">
+            <div class="row align-items-center">
+                <div class="col-md-6 mb-2 mb-md-0">
                     <p class="mb-0 text-muted small">
                         <i class="fas fa-shield-alt me-1"></i>
                         Система защищена современными технологиями безопасности. 
                         Все данные зашифрованы и защищены от несанкционированного доступа.
                     </p>
                 </div>
-                <div class="col-md-4 text-md-end">
+                <div class="col-md-3 mb-2 mb-md-0">
+                    <ul class="list-inline mb-0 small">
+                        <li class="list-inline-item">
+                            <a href="{{ url_for('privacy_policy') }}" class="text-decoration-none text-light">
+                                Политика конфиденциальности
+                            </a>
+                        </li>
+                        <li class="list-inline-item">|</li>
+                        <li class="list-inline-item">
+                            <a href="{{ url_for('terms_of_use') }}" class="text-decoration-none text-light">
+                                Пользовательское соглашение
+                            </a>
+                        </li>
+                        <li class="list-inline-item d-block d-md-none"></li>
+                        <li class="list-inline-item">
+                            <a href="{{ url_for('personal_data_consent') }}" class="text-decoration-none text-light">
+                                Согласие на обработку ПДн
+                            </a>
+                        </li>
+                        <li class="list-inline-item">|</li>
+                        <li class="list-inline-item">
+                            <a href="{{ url_for('site_rules') }}" class="text-decoration-none text-light">
+                                Правила работы сайта
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+                <div class="col-md-3 text-md-end">
                     <p class="mb-0 text-muted small">
                         <i class="fas fa-code me-1"></i>
                         Разработано с использованием Flask & Bootstrap

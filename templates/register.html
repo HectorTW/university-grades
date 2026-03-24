@@ -105,13 +105,41 @@
                             </select>
                         {% endif %}
                     </div>
-                    
                     <div class="alert alert-info">
                         <i class="fas fa-info-circle me-2"></i>
                         <strong>Важно:</strong> Студенты регистрируются автоматически, 
                         а учителям и работодателям требуется одобрение администратора.
                     </div>
-                    
+
+                    <div class="form-check mb-3">
+                        {% if form %}
+                            {{ form.accept_terms(class="form-check-input", id="accept_terms") }}
+                            <label class="form-check-label" for="accept_terms">
+                                Продолжая, Вы подтверждаете, что ознакомлены, полностью согласны и принимаете
+                                <a href="{{ url_for('terms_of_use') }}" target="_blank">пользовательское соглашение</a>,
+                                <a href="{{ url_for('privacy_policy') }}" target="_blank">политику конфиденциальности</a>
+                                и даёте
+                                <a href="{{ url_for('personal_data_consent') }}" target="_blank">согласие на обработку персональных данных</a>.
+                            </label>
+                            {% if form.accept_terms.errors %}
+                                <div class="text-danger small mt-1">
+                                    {% for error in form.accept_terms.errors %}
+                                        <div>{{ error }}</div>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        {% else %}
+                            <input class="form-check-input" type="checkbox" id="accept_terms" required>
+                            <label class="form-check-label" for="accept_terms">
+                                Продолжая, Вы подтверждаете, что ознакомлены, полностью согласны и принимаете
+                                <a href="{{ url_for('terms_of_use') }}" target="_blank">пользовательское соглашение</a>,
+                                <a href="{{ url_for('privacy_policy') }}" target="_blank">политику конфиденциальности</a>
+                                и даёте
+                                <a href="{{ url_for('personal_data_consent') }}" target="_blank">согласие на обработку персональных данных</a>.
+                            </label>
+                        {% endif %}
+                    </div>
+
                     <div class="d-grid">
                         <button type="submit" class="btn btn-success btn-lg">
                             <i class="fas fa-user-plus me-2"></i>Зарегистрироваться

@@ -1,7 +1,6 @@
 from marshmallow import Schema, fields, validate, ValidationError
 
-# Допустимые типы жетонов (должны совпадать с app.TOKEN_TYPES)
-TOKEN_TYPES = ['Упорство', 'Трудолюбие', 'Понимание', 'Подготовка', 'Креатив', 'Скорость']
+from tokens import TOKEN_TYPES
 
 class GradeSchema(Schema):
     student_id = fields.Int(required=True, validate=validate.Range(min=1), error_messages={

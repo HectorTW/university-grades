@@ -17,6 +17,7 @@ from logging.handlers import RotatingFileHandler
 from dotenv import load_dotenv
 from forms import RegistrationForm, LoginForm, StudentProfileForm, EmployerProfileForm
 from schemas import SubmitGradesSchema, InvitationSchema
+from tokens import TOKEN_CATALOG, TOKEN_TYPES
 from marshmallow import ValidationError
 
 # Загружаем переменные окружения
@@ -156,9 +157,6 @@ class Subject(db.Model):
     name = db.Column(db.String(100), nullable=False, unique=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
-# 6 жетонов для выбора учителем (0–3 на оценку)
-TOKEN_TYPES = ['Упорство', 'Трудолюбие', 'Понимание', 'Подготовка', 'Креатив', 'Скорость']
-
 class Characteristic(db.Model):
     """5 характеристик для работодателя (названия настраиваются в админке)."""
     id = db.Column(db.Integer, primary_key=True)
@@ -188,6 +186,7 @@ class EmployerProfile(db.Model):
     industry = db.Column(db.String(100))
     company_size = db.Column(db.String(50))  # малый, средний, крупный
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    invitations_quota = db.Column(db.Integer, nullable=False, default=10)  # Лимит приглашений для работодателя
 
 class InterviewInvitation(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -284,7 +283,8 @@ def get_student_token_counts(student_id):
     ).group_by(TokenAward.token_type).all()
     counts = {t: 0 for t in TOKEN_TYPES}
     for token_type, cnt in rows:
-        counts[token_type] = cnt
+        if token_type in counts:
+            counts[token_type] = cnt
     return counts
 
 # Функции для работы с файлами
@@ -554,6 +554,16 @@ def employer_dashboard():
         flash('Доступ запрещен')
         return redirect(url_for('index'))
     
+    # Проверяем, заполнен ли профиль работодателя
+    employer_profile = current_user.employer_profile
+    has_employer_profile = employer_profile is not None
+    # Счётчики приглашений
+    invitations_sent_count = InterviewInvitation.query.filter_by(employer_id=current_user.id).count()
+    invitations_quota = 10
+    if employer_profile and employer_profile.invitations_quota is not None:
+        invitations_quota = employer_profile.invitations_quota
+    invitations_remaining = max(invitations_quota - invitations_sent_count, 0)
+
     # Получаем всех студентов с их профилями и средними оценками
     students_query = db.session.query(User, StudentProfile).join(
         StudentProfile, User.id == StudentProfile.user_id
@@ -598,7 +608,18 @@ def employer_dashboard():
             'already_invited': already_invited
         })
     
-    return render_template('employer_dashboard.html', students=students_with_grades, students_for_js=students_for_js, characteristics_list=characteristics_list, now=datetime.utcnow())
+    return render_template(
+        'employer_dashboard.html',
+        students=students_with_grades,
+        students_for_js=students_for_js,
+        token_catalog=TOKEN_CATALOG,
+        characteristics_list=characteristics_list,
+        now=datetime.utcnow(),
+        has_employer_profile=has_employer_profile,
+        invitations_quota=invitations_quota,
+        invitations_remaining=invitations_remaining,
+        invitations_sent_count=invitations_sent_count
+    )
 
 @app.route('/employer/profile', methods=['GET', 'POST'])
 @login_required
@@ -675,8 +696,34 @@ def grade_students(group_id):
     
     # Получаем все предметы для выбора
     subjects = Subject.query.all()
+
+    students_sequential = []
+    for user, profile in students:
+        fn = (profile.first_name or '').strip()
+        parts = fn.split()
+        if len(parts) >= 2 and parts[1]:
+            display_name = f'{profile.last_name} {parts[0]} {parts[1][0]}.'
+        else:
+            display_name = f'{profile.last_name} {profile.first_name}'
+        photo_url = (
+            url_for('uploaded_file', filename=profile.photo_filename)
+            if profile.photo_filename
+            else None
+        )
+        students_sequential.append({
+            'id': user.id,
+            'name': display_name,
+            'photo_url': photo_url,
+        })
     
-    return render_template('grade_students.html', students=students, group=group, subjects=subjects)
+    return render_template(
+        'grade_students.html',
+        students=students,
+        group=group,
+        subjects=subjects,
+        token_catalog=TOKEN_CATALOG,
+        students_sequential=students_sequential,
+    )
 
 @app.route('/teacher/submit_grades', methods=['POST'])
 @login_required
@@ -747,6 +794,25 @@ def admin_dashboard():
     
     return render_template('admin_dashboard.html', users=users, pending_teachers=pending_teachers, pending_employers=pending_employers, invitations=invitations)
 
+
+@app.route('/admin/employers')
+@login_required
+def admin_employers():
+    if current_user.role != 'admin':
+        flash('Доступ запрещен')
+        return redirect(url_for('index'))
+
+    # Все пользователи-работодатели
+    employers_q = User.query.filter_by(role='employer').all()
+
+    items = []
+    for employer in employers_q:
+        profile = employer.employer_profile
+        sent_count = InterviewInvitation.query.filter_by(employer_id=employer.id).count()
+        items.append({'user': employer, 'profile': profile, 'sent_count': sent_count})
+
+    return render_template('admin_employers.html', employers=items)
+
 @app.route('/admin/approve_teacher/<int:user_id>', methods=['POST'])
 @login_required
 def approve_teacher(user_id):
@@ -777,6 +843,42 @@ def approve_employer(user_id):
     
     app.logger.info(f'Admin {current_user.id} approved employer {user_id} ({user.username})')
     flash(f'Работодатель {user.username} одобрен')
+    return redirect(url_for('admin_dashboard'))
+
+
+@app.route('/admin/employer_quota/<int:user_id>', methods=['POST'])
+@login_required
+def update_employer_quota(user_id):
+    """Обновление лимита приглашений для работодателя."""
+    if current_user.role != 'admin':
+        flash('Доступ запрещен')
+        app.logger.warning(f'Unauthorized access attempt to update_employer_quota by user {current_user.id} (role: {current_user.role})')
+        return redirect(url_for('index'))
+
+    user = User.query.get_or_404(user_id)
+    if user.role != 'employer':
+        flash('Лимит приглашений можно задавать только для работодателей')
+        return redirect(url_for('admin_dashboard'))
+
+    raw_quota = (request.form.get('invitations_quota') or '').strip()
+    try:
+        quota = int(raw_quota)
+    except ValueError:
+        quota = 10
+
+    if quota < 0:
+        quota = 0
+
+    profile = user.employer_profile
+    if not profile:
+        profile = EmployerProfile(user_id=user.id, company_name=user.username, contact_person=user.username)
+        db.session.add(profile)
+
+    profile.invitations_quota = quota
+    db.session.commit()
+
+    app.logger.info(f'Admin {current_user.id} set invitations_quota={quota} for employer {user_id} ({user.username})')
+    flash(f'Лимит приглашений для работодателя {user.username} обновлён (теперь {quota})')
     return redirect(url_for('admin_dashboard'))
 
 @app.route('/admin/delete_user/<int:user_id>', methods=['POST'])
@@ -1053,6 +1155,22 @@ def send_invitation():
         app.logger.warning(f'Unauthorized access attempt to send_invitation by user {current_user.id} (role: {current_user.role})')
         return jsonify({'success': False, 'message': 'Доступ запрещен'}), 403
     
+    # Запрет отправки приглашений без заполненного профиля работодателя
+    employer_profile = current_user.employer_profile
+    if not employer_profile:
+        app.logger.warning(f'Employer {current_user.id} attempted to send invitation without employer profile')
+        return jsonify({'success': False, 'message': 'Сначала заполните профиль компании'}), 400
+
+    # Проверка лимита приглашений
+    invitations_quota = employer_profile.invitations_quota or 10
+    invitations_sent_count = InterviewInvitation.query.filter_by(employer_id=current_user.id).count()
+    if invitations_sent_count >= invitations_quota:
+        app.logger.warning(f'Employer {current_user.id} exceeded invitations quota ({invitations_sent_count}/{invitations_quota})')
+        return jsonify({
+            'success': False,
+            'message': f'Исчерпан лимит приглашений ({invitations_sent_count} из {invitations_quota}). Обратитесь к администратору.'
+        }), 400
+    
     try:
         schema = InvitationSchema()
         data = schema.load(request.get_json())
@@ -1125,8 +1243,42 @@ def employer_invitations():
     
     # Получаем все приглашения, отправленные этим работодателем
     invitations = InterviewInvitation.query.filter_by(employer_id=current_user.id).order_by(InterviewInvitation.created_at.desc()).all()
+
+    # Счётчики приглашений
+    employer_profile = current_user.employer_profile
+    invitations_sent_count = len(invitations)
+    invitations_quota = 10
+    if employer_profile and employer_profile.invitations_quota is not None:
+        invitations_quota = employer_profile.invitations_quota
+    invitations_remaining = max(invitations_quota - invitations_sent_count, 0)
     
-    return render_template('employer_invitations.html', invitations=invitations)
+    return render_template(
+        'employer_invitations.html',
+        invitations=invitations,
+        invitations_quota=invitations_quota,
+        invitations_remaining=invitations_remaining,
+        invitations_sent_count=invitations_sent_count
+    )
+
+
+@app.route('/docs/privacy')
+def privacy_policy():
+    return render_template('docs/privacy_policy.html')
+
+
+@app.route('/docs/terms')
+def terms_of_use():
+    return render_template('docs/terms_of_use.html')
+
+
+@app.route('/docs/personal-data-consent')
+def personal_data_consent():
+    return render_template('docs/personal_data_consent.html')
+
+
+@app.route('/docs/site-rules')
+def site_rules():
+    return render_template('docs/site_rules.html')
 
 # Обработка ошибок
 @app.errorhandler(404)
