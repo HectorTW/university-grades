@@ -16,13 +16,14 @@ depends_on = None
 
 
 def upgrade():
+    # SQLite: 0/1; PostgreSQL: требует именно boolean default (false), не целое 0.
     with op.batch_alter_table('student_profile', schema=None) as batch_op:
         batch_op.add_column(
             sa.Column(
                 'ready_for_business_trips',
                 sa.Boolean(),
                 nullable=False,
-                server_default=sa.text('0'),
+                server_default=sa.false(),
             )
         )
 
