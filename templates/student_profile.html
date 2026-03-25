@@ -136,19 +136,29 @@
                     </div>
                     
                     <div class="mb-3">
-                        <label for="address" class="form-label">
-                            <i class="fas fa-map-marker-alt me-1"></i>Адрес
+                        <label for="city" class="form-label">
+                            <i class="fas fa-city me-1"></i>Город проживания
                         </label>
-                        <textarea class="form-control" id="address" name="address" rows="2" 
-                                  placeholder="Укажите ваш домашний адрес">{{ profile.address if profile else '' }}</textarea>
+                        <input type="text" class="form-control" id="city" name="city" list="russian-cities-datalist"
+                               value="{{ profile.address if profile else '' }}"
+                               placeholder="Начните вводить или выберите из списка"
+                               autocomplete="address-level2">
+                        <datalist id="russian-cities-datalist"></datalist>
+                        <div class="form-text">Список подсказок — крупные города России; можно ввести свой населённый пункт.</div>
+                    </div>
+                    
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" class="form-check-input" id="ready_for_business_trips" name="ready_for_business_trips"
+                               {% if profile and profile.ready_for_business_trips %}checked{% endif %}>
+                        <label class="form-check-label" for="ready_for_business_trips">Готовность к командировкам</label>
                     </div>
                     
                     <div class="mb-3">
                         <label for="about_me" class="form-label">
-                            <i class="fas fa-heart me-1"></i>Немного о себе (хобби, достижения, мотивация)
+                            <i class="fas fa-heart me-1"></i>О себе (владение ПО, хобби, достижения, мотивация)
                         </label>
                         <textarea class="form-control" id="about_me" name="about_me" rows="4" 
-                                  placeholder="Расскажите о своих интересах, достижениях и мотивации к обучению">{{ profile.about_me if profile else '' }}</textarea>
+                                  placeholder="Навыки и ПО, интересы, достижения, мотивация">{{ profile.about_me if profile else '' }}</textarea>
                     </div>
                     
                     <div class="alert alert-info">
@@ -193,6 +203,20 @@
 
 {% block scripts %}
 <script>
+(function () {
+    const datalist = document.getElementById('russian-cities-datalist');
+    if (!datalist) return;
+    fetch('{{ url_for("static", filename="data/russian_cities.json") }}')
+        .then(function (r) { return r.json(); })
+        .then(function (cities) {
+            cities.forEach(function (name) {
+                var opt = document.createElement('option');
+                opt.value = name;
+                datalist.appendChild(opt);
+            });
+        })
+        .catch(function () { /* список необязателен */ });
+})();
 function previewPhoto(input) {
     if (input.files && input.files[0]) {
         const reader = new FileReader();

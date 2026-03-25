@@ -209,7 +209,8 @@ class StudentProfile(db.Model):
     group_id = db.Column(db.Integer, db.ForeignKey('group.id'))
     phone = db.Column(db.String(20))
     birth_date = db.Column(db.Date)
-    address = db.Column(db.Text)
+    address = db.Column(db.Text)  # город проживания (исторически поле address)
+    ready_for_business_trips = db.Column(db.Boolean, default=False, nullable=False)
     photo_filename = db.Column(db.String(255))
     study_form = db.Column(db.String(20))  # очная, заочная, дистанционная
     desired_direction_id = db.Column(db.Integer, db.ForeignKey('study_direction.id'))
@@ -487,7 +488,8 @@ def student_profile():
         profile.first_name = form.first_name.data
         profile.last_name = form.last_name.data
         profile.phone = form.phone.data if form.phone.data else None
-        profile.address = form.address.data if form.address.data else None
+        profile.address = form.city.data.strip() if form.city.data and form.city.data.strip() else None
+        profile.ready_for_business_trips = bool(form.ready_for_business_trips.data)
         profile.study_form = form.study_form.data if form.study_form.data else None
         profile.about_me = form.about_me.data if form.about_me.data else None
         
@@ -534,7 +536,8 @@ def student_profile():
         form.first_name.data = profile.first_name
         form.last_name.data = profile.last_name
         form.phone.data = profile.phone
-        form.address.data = profile.address
+        form.city.data = profile.address
+        form.ready_for_business_trips.data = profile.ready_for_business_trips
         form.study_form.data = profile.study_form
         form.about_me.data = profile.about_me
         form.group_id.data = profile.group_id
@@ -1338,6 +1341,8 @@ def admin_student_profile(user_id):
             'phone': profile.phone,
             'birth_date': profile.birth_date.isoformat() if profile.birth_date else None,
             'address': profile.address,
+            'city': profile.address,
+            'ready_for_business_trips': profile.ready_for_business_trips,
             'photo_filename': profile.photo_filename,
             'study_form': profile.study_form,
             'about_me': profile.about_me,

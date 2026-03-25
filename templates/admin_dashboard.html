@@ -818,7 +818,8 @@ document.addEventListener('DOMContentLoaded', function() {
                             <p class="mb-1"><strong>Email:</strong> ${esc(student.email)}</p>
                             <p class="mb-1"><strong>Телефон:</strong> ${esc(profile.phone || 'Не указан')}</p>
                             <p class="mb-1"><strong>Дата рождения:</strong> ${profile.birth_date ? new Date(profile.birth_date).toLocaleDateString('ru-RU') : 'Не указана'}</p>
-                            <p class="mb-1"><strong>Адрес:</strong> ${esc(profile.address || 'Не указан')}</p>
+                            <p class="mb-1"><strong>Город проживания:</strong> ${esc(profile.city || profile.address || 'Не указан')}</p>
+                            <p class="mb-1"><strong>Готовность к командировкам:</strong> ${profile.ready_for_business_trips ? 'Да' : 'Нет'}</p>
                         </div>
                         <div class="col-sm-6 mb-3">
                             <h6 class="text-success mb-1"><i class="fas fa-graduation-cap me-2"></i>Учебная информация</h6>

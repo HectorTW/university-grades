@@ -78,8 +78,9 @@
                             <p><strong>Дата рождения:</strong> {{ profile.birth_date.strftime('%d.%m.%Y') }}</p>
                         {% endif %}
                         {% if profile.address %}
-                            <p><strong>Адрес:</strong> {{ profile.address }}</p>
+                            <p><strong>Город проживания:</strong> {{ profile.address }}</p>
                         {% endif %}
+                        <p><strong>Готовность к командировкам:</strong> {% if profile.ready_for_business_trips %}да{% else %}нет{% endif %}</p>
                     </div>
                 </div>
                 {% if profile.about_me %}

@@ -53,17 +53,18 @@ class StudentProfileForm(FlaskForm):
         Optional(),
         Regexp(r'^\+?[1-9]\d{1,14}$', message='Некорректный номер телефона')
     ])
-    address = TextAreaField('Адрес', validators=[
+    city = StringField('Город проживания', validators=[
         Optional(),
-        Length(max=500, message='Адрес слишком длинный')
+        Length(max=200, message='Название города слишком длинное')
     ])
+    ready_for_business_trips = BooleanField('Готовность к командировкам', validators=[Optional()])
     study_form = SelectField('Форма обучения', choices=[
         ('', 'Выберите форму'),
         ('очная', 'Очная'),
         ('заочная', 'Заочная'),
         ('дистанционная', 'Дистанционная')
     ], validators=[Optional()])
-    about_me = TextAreaField('О себе', validators=[
+    about_me = TextAreaField('О себе (владение ПО, хобби, достижения, мотивация)', validators=[
         Optional(),
         Length(max=2000, message='Текст слишком длинный')
     ])
