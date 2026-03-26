@@ -506,29 +506,55 @@ def student_profile():
         if form.birth_date.data:
             profile.birth_date = form.birth_date.data
         
-        # Обработка загрузки фото
+        # Обработка загрузки фото:
+        # сначала сохраняем новый файл, а старый удаляем только после успешного commit.
+        old_photo_filename = profile.photo_filename
+        new_photo_filename = None
         if 'photo' in request.files:
             file = request.files['photo']
             if file and file.filename:
                 try:
-                    # Удаляем старое фото если есть
-                    if profile.photo_filename:
-                        old_photo_path = os.path.join(app.config['UPLOAD_FOLDER'], profile.photo_filename)
-                        if os.path.exists(old_photo_path):
-                            os.remove(old_photo_path)
-                    
-                    # Сохраняем новое фото
-                    new_filename = save_profile_photo(file, current_user.id)
-                    if new_filename:
-                        profile.photo_filename = new_filename
+                    new_photo_filename = save_profile_photo(file, current_user.id)
+                    if new_photo_filename:
+                        profile.photo_filename = new_photo_filename
                 except ValueError as e:
                     flash(f'Ошибка загрузки фото: {str(e)}')
                     app.logger.warning(f'Photo upload failed for user {current_user.id}: {str(e)}')
         
-        db.session.commit()
+        try:
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            # Если новая фотография была сохранена, но БД не зафиксировалась — убираем "осиротевший" файл.
+            if new_photo_filename:
+                new_photo_path = os.path.join(app.config['UPLOAD_FOLDER'], new_photo_filename)
+                if os.path.exists(new_photo_path):
+                    os.remove(new_photo_path)
+            app.logger.error(f'Failed to update student profile for user {current_user.id}: {str(e)}')
+            flash('Не удалось сохранить профиль. Попробуйте еще раз.')
+            return render_template(
+                'student_profile.html',
+                form=form,
+                profile=profile,
+                groups=Group.query.all(),
+                directions=StudyDirection.query.all(),
+                specializations=Specialization.query.all()
+            )
+
+        # Удаляем предыдущее фото только когда новое успешно зафиксировано в БД.
+        if new_photo_filename and old_photo_filename and old_photo_filename != new_photo_filename:
+            old_photo_path = os.path.join(app.config['UPLOAD_FOLDER'], old_photo_filename)
+            if os.path.exists(old_photo_path):
+                os.remove(old_photo_path)
+
         app.logger.info(f'Student profile updated: user {current_user.id}')
         flash('Профиль успешно обновлен!')
         return redirect(url_for('student_dashboard'))
+    elif request.method == 'POST':
+        for field, errors in form.errors.items():
+            label = getattr(form, field).label.text if hasattr(getattr(form, field), 'label') else field
+            for error in errors:
+                flash(f'{label}: {error}')
     
     # Заполняем форму текущими данными
     profile = current_user.student_profile

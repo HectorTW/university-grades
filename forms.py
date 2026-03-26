@@ -51,7 +51,10 @@ class StudentProfileForm(FlaskForm):
     ])
     phone = StringField('Телефон', validators=[
         Optional(),
-        Regexp(r'^\+?[1-9]\d{1,14}$', message='Некорректный номер телефона')
+        Regexp(
+            r'^\+?[0-9\s\-\(\)]{7,20}$',
+            message='Некорректный номер телефона'
+        )
     ])
     city = StringField('Город проживания', validators=[
         Optional(),
