@@ -13,7 +13,7 @@
                 </h4>
             </div>
             <div class="card-body">
-                <form method="POST" enctype="multipart/form-data">
+                <form method="POST" enctype="multipart/form-data" id="student-profile-form" novalidate>
                     {% if form %}
                         {{ form.hidden_tag() }}
                     {% endif %}
@@ -40,16 +40,18 @@
                                     <label for="first_name" class="form-label">
                                         <i class="fas fa-user me-1"></i>Имя *
                                     </label>
-                                    <input type="text" class="form-control" id="first_name" name="first_name" 
+                                    <input type="text" class="form-control" id="first_name" name="first_name"
                                            value="{{ profile.first_name if profile else '' }}" required>
+                                    <div class="invalid-feedback">Введите имя.</div>
                                 </div>
                                 
                                 <div class="col-md-6 mb-3">
                                     <label for="last_name" class="form-label">
                                         <i class="fas fa-user me-1"></i>Фамилия *
                                     </label>
-                                    <input type="text" class="form-control" id="last_name" name="last_name" 
+                                    <input type="text" class="form-control" id="last_name" name="last_name"
                                            value="{{ profile.last_name if profile else '' }}" required>
+                                    <div class="invalid-feedback">Введите фамилию.</div>
                                 </div>
                             </div>
                             
@@ -67,6 +69,7 @@
                                             </option>
                                         {% endfor %}
                                     </select>
+                                    <div class="invalid-feedback">Выберите группу.</div>
                                 </div>
                                 
                                 <div class="col-md-6 mb-3">
@@ -90,8 +93,9 @@
                                 <i class="fas fa-phone me-1"></i>Телефон
                             </label>
                             <input type="tel" class="form-control" id="phone" name="phone" 
-                                   value="{{ profile.phone if profile else '' }}"
+                                   value="{{ profile.phone if profile and profile.phone else '' }}"
                                    placeholder="+7 (999) 123-45-67">
+                            <div class="invalid-feedback">Введите корректный номер телефона.</div>
                         </div>
                         
                         <div class="col-md-6 mb-3">
@@ -140,7 +144,7 @@
                             <i class="fas fa-city me-1"></i>Город проживания
                         </label>
                         <input type="text" class="form-control" id="city" name="city" list="russian-cities-datalist"
-                               value="{{ profile.address if profile else '' }}"
+                               value="{{ profile.address if profile and profile.address else '' }}"
                                placeholder="Начните вводить или выберите из списка"
                                autocomplete="address-level2">
                         <datalist id="russian-cities-datalist"></datalist>
@@ -158,7 +162,7 @@
                             <i class="fas fa-heart me-1"></i>О себе (владение ПО, хобби, достижения, мотивация)
                         </label>
                         <textarea class="form-control" id="about_me" name="about_me" rows="4" 
-                                  placeholder="Навыки и ПО, интересы, достижения, мотивация">{{ profile.about_me if profile else '' }}</textarea>
+                                  placeholder="Навыки и ПО, интересы, достижения, мотивация">{{ profile.about_me if profile and profile.about_me else '' }}</textarea>
                     </div>
                     
                     <div class="alert alert-info">
@@ -170,7 +174,7 @@
                         <a href="{{ url_for('student_dashboard') }}" class="btn btn-secondary">
                             <i class="fas fa-arrow-left me-2"></i>Назад
                         </a>
-                        <button type="submit" class="btn btn-primary">
+                        <button type="submit" class="btn btn-primary" id="save-profile-btn" disabled>
                             <i class="fas fa-save me-2"></i>
                             {% if profile %}Сохранить изменения{% else %}Создать профиль{% endif %}
                         </button>
@@ -233,6 +237,62 @@ function previewPhoto(input) {
         reader.readAsDataURL(input.files[0]);
     }
 }
+
+(function () {
+    const form = document.getElementById('student-profile-form');
+    const submitBtn = document.getElementById('save-profile-btn');
+    const phoneInput = document.getElementById('phone');
+    if (!form || !submitBtn) return;
+
+    const phoneRegex = /^\+?[0-9\s\-()]{7,20}$/;
+
+    function validatePhone() {
+        if (!phoneInput) return true;
+        const value = phoneInput.value.trim();
+        if (!value) {
+            phoneInput.setCustomValidity('');
+            return true;
+        }
+        if (phoneRegex.test(value)) {
+            phoneInput.setCustomValidity('');
+            return true;
+        }
+        phoneInput.setCustomValidity('Некорректный номер телефона');
+        return false;
+    }
+
+    function validateFormUI() {
+        validatePhone();
+        const elements = form.querySelectorAll('input, select, textarea');
+        elements.forEach(function (field) {
+            if (field.checkValidity()) {
+                field.classList.remove('is-invalid');
+                if (field.value && field.type !== 'checkbox' && field.type !== 'file') {
+                    field.classList.add('is-valid');
+                } else {
+                    field.classList.remove('is-valid');
+                }
+            } else {
+                field.classList.add('is-invalid');
+                field.classList.remove('is-valid');
+            }
+        });
+
+        submitBtn.disabled = !form.checkValidity();
+    }
+
+    form.addEventListener('input', validateFormUI);
+    form.addEventListener('change', validateFormUI);
+    form.addEventListener('submit', function (e) {
+        validateFormUI();
+        if (!form.checkValidity()) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+    });
+
+    validateFormUI();
+})();
 </script>
 
 <style>
