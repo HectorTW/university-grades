@@ -48,8 +48,9 @@
                             <tr>
                                 <th>ID</th>
                                 <th>Логин</th>
-                                <th>Компания</th>
-                                <th>Контактное лицо</th>
+                                <th>Организация</th>
+                                <th>ОГРН</th>
+                                <th>Ответственный</th>
                                 <th>Email</th>
                                 <th class="text-center">Текущий лимит</th>
                                 <th class="text-center">Всего приглашений</th>
@@ -64,7 +65,17 @@
                                 <td>{{ user.id }}</td>
                                 <td><strong>{{ user.username }}</strong></td>
                                 <td>{{ profile.company_name if profile else '-' }}</td>
-                                <td>{{ profile.contact_person if profile else '-' }}</td>
+                                <td>{{ profile.ogrn if profile and profile.ogrn else '—' }}</td>
+                                <td>
+                                    {% if profile %}
+                                        {{ profile.contact_person }}
+                                        {% if profile.responsible_position %}
+                                            <br><small class="text-muted">{{ profile.responsible_position }}</small>
+                                        {% endif %}
+                                    {% else %}
+                                        —
+                                    {% endif %}
+                                </td>
                                 <td>{{ user.email }}</td>
                                 <td class="text-center">
                                     {% if profile and profile.invitations_quota is not none %}

@@ -14,15 +14,23 @@
                 <a href="{{ url_for('employer_profile') }}" class="btn btn-info btn-sm">
                     <i class="fas fa-building me-1 d-none d-md-inline"></i>Профиль компании
                 </a>
+                {% if employer_can_browse_students %}
                 <a href="{{ url_for('employer_invitations') }}" class="btn btn-warning btn-sm">
                     <i class="fas fa-envelope me-1 d-none d-md-inline"></i>Мои приглашения
                 </a>
+                {% endif %}
             </div>
         </div>
         {% if not has_employer_profile %}
         <div class="alert alert-warning" role="alert">
             <i class="fas fa-exclamation-triangle me-2"></i>
             Чтобы отправлять приглашения студентам, сначала заполните <a href="{{ url_for('employer_profile') }}" class="alert-link">профиль компании</a>.
+        </div>
+        {% endif %}
+        {% if not employer_can_browse_students %}
+        <div class="alert alert-info" role="alert">
+            <i class="fas fa-info-circle me-2"></i>
+            Каталог студентов и отправка приглашений станут доступны после одобрения аккаунта администратором. Пока вы можете заполнить <a href="{{ url_for('employer_profile') }}" class="alert-link">профиль компании</a>.
         </div>
         {% endif %}
     </div>
@@ -59,6 +67,7 @@
     </div>
 </div>
 
+{% if employer_can_browse_students %}
 <!-- Фильтры и сортировка -->
 <div class="row mb-4">
     <div class="col-12">
@@ -70,8 +79,8 @@
                 </h5>
             </div>
             <div class="card-body">
-                <div class="row">
-                    <div class="col-md-3">
+                <div class="row row-cols-1 row-cols-lg-6 g-2 g-lg-3 align-items-end">
+                    <div class="col">
                         <label for="study_form_filter" class="form-label">Форма обучения</label>
                         <select class="form-select" id="study_form_filter">
                             <option value="">Все формы</option>
@@ -80,16 +89,30 @@
                             <option value="дистанционная">Дистанционная</option>
                         </select>
                     </div>
-                    
-                    <div class="col-md-3">
+                    <div class="col">
                         <label for="direction_filter" class="form-label">Направление</label>
                         <select class="form-select" id="direction_filter">
                             <option value="">Все направления</option>
                             <!-- Опции будут добавлены через JavaScript -->
                         </select>
                     </div>
-                    
-                    <div class="col-md-3">
+                    <div class="col">
+                        <label for="degree_filter" class="form-label">Тип группы</label>
+                        <select class="form-select" id="degree_filter">
+                            <option value="">Все</option>
+                            <option value="bachelor">Бакалавриат</option>
+                            <option value="master">Магистратура</option>
+                        </select>
+                    </div>
+                    <div class="col">
+                        <label for="business_trips_filter" class="form-label">Командировки</label>
+                        <select class="form-select" id="business_trips_filter">
+                            <option value="">Все</option>
+                            <option value="yes">Готов к командировкам</option>
+                            <option value="no">Не готов</option>
+                        </select>
+                    </div>
+                    <div class="col">
                         <label for="sort_by" class="form-label">Сортировка</label>
                         <select class="form-select" id="sort_by">
                             <option value="name">По имени</option>
@@ -99,18 +122,16 @@
                             <option value="birth_date">По дате рождения</option>
                         </select>
                     </div>
-                    
-                    <div class="col-md-3">
-                        <label for="view_mode" class="form-label">Вид отображения</label>
-                        <div class="btn-group w-100" role="group">
+                    <div class="col">
+                        <label class="form-label d-block">Вид</label>
+                        <div class="btn-group w-100" role="group" aria-label="Вид отображения">
                             <input type="radio" class="btn-check" name="view_mode" id="card_view" value="cards" checked>
-                            <label class="btn btn-outline-primary" for="card_view">
-                                <i class="fas fa-th-large"></i> Карточки
+                            <label class="btn btn-outline-primary btn-sm py-2" for="card_view" title="Карточки">
+                                <i class="fas fa-th-large me-1"></i>Карточки
                             </label>
-                            
                             <input type="radio" class="btn-check" name="view_mode" id="table_view_radio" value="table">
-                            <label class="btn btn-outline-primary" for="table_view_radio">
-                                <i class="fas fa-table"></i> Таблица
+                            <label class="btn btn-outline-primary btn-sm py-2" for="table_view_radio" title="Таблица">
+                                <i class="fas fa-table me-1"></i>Таблица
                             </label>
                         </div>
                     </div>
@@ -119,7 +140,20 @@
         </div>
     </div>
 </div>
+{% else %}
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card border-0 bg-light">
+            <div class="card-body text-center text-muted py-5">
+                <i class="fas fa-lock fa-3x mb-3 d-block"></i>
+                <p class="mb-0">Каталог студентов откроется после одобрения администратором.</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
 
+{% if employer_can_browse_students %}
 <!-- Список студентов -->
 <div class="row">
     <div class="col-12">
@@ -161,10 +195,12 @@
         </div>
     </div>
 </div>
+{% endif %}
 
 <!-- Портал для увеличенного аватара (рендерится поверх всего) -->
 <div id="avatar-preview-portal" class="avatar-preview-portal" aria-hidden="true"></div>
 
+{% if employer_can_browse_students %}
 <!-- Модальное окно для отправки приглашения -->
 <div class="modal fade" id="invitationModal" tabindex="-1">
     <div class="modal-dialog">
@@ -196,6 +232,7 @@
         </div>
     </div>
 </div>
+{% endif %}
 {% endblock %}
 
 {% block scripts %}
@@ -204,8 +241,9 @@
 <script type="application/json" id="token-catalog">{{ token_catalog|tojson|safe }}</script>
 
 <script>
-// Флаг: может ли работодатель отправлять приглашения (профиль компании заполнен)
-const CAN_SEND_INVITATIONS = {{ 'true' if has_employer_profile else 'false' }};
+const EMPLOYER_CAN_BROWSE_STUDENTS = {{ 'true' if employer_can_browse_students else 'false' }};
+// Профиль заполнен и аккаунт одобрен администратором
+const CAN_SEND_INVITATIONS = {{ 'true' if can_send_invitations else 'false' }};
 let invitationsSentCount = {{ invitations_sent_count }};
 let invitationsQuota = {{ invitations_quota }};
 let invitationsRemaining = {{ invitations_remaining }};
@@ -251,7 +289,7 @@ function escapeHtml(value) {
 
 function openInvitationModal(studentId, studentName) {
     if (!CAN_SEND_INVITATIONS) {
-        alert('Сначала заполните профиль компании, чтобы отправлять приглашения.');
+        alert('Чтобы отправлять приглашения, заполните профиль компании и дождитесь одобрения аккаунта администратором.');
         return;
     }
     document.getElementById('student_id').value = studentId;
@@ -261,7 +299,7 @@ function openInvitationModal(studentId, studentName) {
 
 function sendInvitation() {
     if (!CAN_SEND_INVITATIONS) {
-        alert('Сначала заполните профиль компании, чтобы отправлять приглашения.');
+        alert('Чтобы отправлять приглашения, заполните профиль компании и дождитесь одобрения аккаунта администратором.');
         return;
     }
     const studentIdVal = document.getElementById('student_id').value;
@@ -344,8 +382,13 @@ function sendInvitation() {
 
 // Новая система фильтрации и сортировки
 document.addEventListener('DOMContentLoaded', function() {
+    if (!EMPLOYER_CAN_BROWSE_STUDENTS) {
+        return;
+    }
     const studyFormFilter = document.getElementById('study_form_filter');
     const directionFilter = document.getElementById('direction_filter');
+    const degreeFilter = document.getElementById('degree_filter');
+    const businessTripsFilter = document.getElementById('business_trips_filter');
     const sortBy = document.getElementById('sort_by');
     const viewModeRadios = document.querySelectorAll('input[name="view_mode"]');
     
@@ -479,8 +522,15 @@ document.addEventListener('DOMContentLoaded', function() {
                                 <div>${age} лет</div>
                             </div>
                             <div class="col-12">
+                                <div><span class="text-muted small">Командировки:</span> <span>${student.ready_for_business_trips ? 'готов' : 'не готов'}</span></div>
+                            </div>
+                            <div class="col-12">
                                 <div><span class="text-muted small">Направление:</span> <span>${escapeHtml(student.direction || 'Не указано')}</span></div>
                             </div>
+                            ${student.group_degree_label ? `
+                            <div class="col-12">
+                                <div><span class="text-muted small">Тип группы:</span> <span>${escapeHtml(student.group_degree_label)}</span></div>
+                            </div>` : ''}
                             <div class="col-12">
                                 <div><span class="text-muted small">Специализация:</span> <span>${escapeHtml(student.specialization || 'Не указана')}</span></div>
                             </div>
@@ -556,7 +606,9 @@ document.addEventListener('DOMContentLoaded', function() {
             <div class="table-info-grid">
                 <div class="table-info-item"><span class="k">Форма:</span> <span class="v">${escapeHtml(student.study_form || '—')}</span></div>
                 <div class="table-info-item"><span class="k">Возраст:</span> <span class="v">${age} лет</span></div>
+                <div class="table-info-item"><span class="k">Командировки:</span> <span class="v">${student.ready_for_business_trips ? 'готов' : 'не готов'}</span></div>
                 <div class="table-info-item"><span class="k">Направление:</span> <span class="v">${escapeHtml(student.direction || '—')}</span></div>
+                ${student.group_degree_label ? `<div class="table-info-item"><span class="k">Тип группы:</span> <span class="v">${escapeHtml(student.group_degree_label)}</span></div>` : ''}
                 <div class="table-info-item"><span class="k">Специализация:</span> <span class="v">${escapeHtml(student.specialization || '—')}</span></div>
             </div>
         `;
@@ -614,6 +666,8 @@ document.addEventListener('DOMContentLoaded', function() {
     function filterAndSort() {
         const selectedStudyForm = studyFormFilter.value;
         const selectedDirection = directionFilter.value;
+        const selectedDegree = degreeFilter ? degreeFilter.value : '';
+        const selectedBusinessTrips = businessTripsFilter ? businessTripsFilter.value : '';
         const sortField = sortBy.value;
         
         // Фильтрация
@@ -625,6 +679,17 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             
             if (selectedDirection && student.direction !== selectedDirection) {
+                show = false;
+            }
+
+            if (selectedDegree && student.group_degree_type !== selectedDegree) {
+                show = false;
+            }
+
+            if (selectedBusinessTrips === 'yes' && !student.ready_for_business_trips) {
+                show = false;
+            }
+            if (selectedBusinessTrips === 'no' && student.ready_for_business_trips) {
                 show = false;
             }
             
@@ -698,6 +763,8 @@ document.addEventListener('DOMContentLoaded', function() {
         // Установка обработчиков событий
         studyFormFilter.addEventListener('change', filterAndSort);
         directionFilter.addEventListener('change', filterAndSort);
+        if (degreeFilter) degreeFilter.addEventListener('change', filterAndSort);
+        if (businessTripsFilter) businessTripsFilter.addEventListener('change', filterAndSort);
         sortBy.addEventListener('change', filterAndSort);
         viewModeRadios.forEach(radio => radio.addEventListener('change', toggleView));
         

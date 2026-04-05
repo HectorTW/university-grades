@@ -45,6 +45,11 @@
                             <i class="fas fa-balance-scale me-2 text-secondary"></i>Влияние предметов
                         </a>
                     </li>
+                    <li>
+                        <a class="dropdown-item" href="{{ url_for('admin_grade_students_index') }}">
+                            <i class="fas fa-star me-2 text-warning"></i>Оценки по предметам
+                        </a>
+                    </li>
                     <li><hr class="dropdown-divider"></li>
                     <li>
                         <a class="dropdown-item" href="{{ url_for('admin_employers') }}">
@@ -101,6 +106,15 @@
                 {{ pending_employers|length }}
             </div>
             <div>Работодатели ожидают</div>
+        </div>
+    </div>
+    
+    <div class="col-6 col-md-2 mb-3">
+        <div class="stats-card">
+            <div class="stats-number">
+                {{ pending_students|length }}
+            </div>
+            <div>Студенты ожидают</div>
         </div>
     </div>
     
@@ -197,7 +211,11 @@
                             {% for employer in pending_employers %}
                             <tr>
                                 <td>
-                                    <strong>{{ employer.username }}</strong>
+                                    <a href="#" class="text-decoration-none employer-profile-link"
+                                       data-user-id="{{ employer.id }}"
+                                       data-username="{{ employer.username }}">
+                                        <strong>{{ employer.username }}</strong>
+                                    </a>
                                 </td>
                                 <td>{{ employer.email }}</td>
                                 <td>{{ employer.created_at.strftime('%d.%m.%Y в %H:%M') }}</td>
@@ -211,6 +229,75 @@
                                     </form>
                                     <form method="POST" action="{{ url_for('delete_user', user_id=employer.id) }}" class="d-inline"
                                           onsubmit="return confirm('Удалить работодателя {{ employer.username }}?')">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                        <button type="submit" class="btn btn-danger btn-sm">
+                                            <i class="fas fa-trash me-1"></i>Удалить
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Ожидающие одобрения студенты -->
+{% if pending_students %}
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-secondary text-white">
+                <h5 class="mb-0">
+                    <i class="fas fa-user-graduate me-2"></i>
+                    Студенты, ожидающие одобрения
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Имя пользователя</th>
+                                <th>Email</th>
+                                <th>ФИО / профиль</th>
+                                <th>Дата регистрации</th>
+                                <th>Действия</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for st in pending_students %}
+                            <tr>
+                                <td>
+                                    <a href="#" class="text-decoration-none student-profile-link"
+                                       data-user-id="{{ st.id }}"
+                                       data-username="{{ st.username }}">
+                                        <strong>{{ st.username }}</strong>
+                                    </a>
+                                </td>
+                                <td>{{ st.email }}</td>
+                                <td>
+                                    {% if st.student_profile %}
+                                        {{ st.student_profile.first_name }} {{ st.student_profile.last_name }}
+                                    {% else %}
+                                        <span class="text-muted">Профиль не заполнен</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ st.created_at.strftime('%d.%m.%Y в %H:%M') }}</td>
+                                <td>
+                                    <form method="POST" action="{{ url_for('approve_student', user_id=st.id) }}" class="d-inline"
+                                          onsubmit="return confirm('Одобрить студента {{ st.username }}? После одобрения он будет виден учителям и работодателям.')">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                        <button type="submit" class="btn btn-success btn-sm">
+                                            <i class="fas fa-check me-1"></i>Одобрить
+                                        </button>
+                                    </form>
+                                    <form method="POST" action="{{ url_for('delete_user', user_id=st.id) }}" class="d-inline"
+                                          onsubmit="return confirm('Удалить пользователя {{ st.username }}?')">
                                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                                         <button type="submit" class="btn btn-danger btn-sm">
                                             <i class="fas fa-trash me-1"></i>Удалить
@@ -390,6 +477,24 @@
                                                 </button>
                                             </form>
                                         {% endif %}
+                                        {% if not user.is_approved and user.role == 'student' %}
+                                            <form method="POST" action="{{ url_for('approve_student', user_id=user.id) }}" class="d-inline"
+                                                  onsubmit="return confirm('Одобрить студента {{ user.username }}? Он станет виден учителям и работодателям.')">
+                                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                                <button type="submit" class="btn btn-success btn-sm">
+                                                    <i class="fas fa-check me-1"></i>Одобрить
+                                                </button>
+                                            </form>
+                                        {% endif %}
+                                        {% if not user.is_approved and user.role == 'employer' %}
+                                            <form method="POST" action="{{ url_for('approve_employer', user_id=user.id) }}" class="d-inline"
+                                                  onsubmit="return confirm('Одобрить работодателя {{ user.username }}?')">
+                                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                                <button type="submit" class="btn btn-success btn-sm">
+                                                    <i class="fas fa-check me-1"></i>Одобрить
+                                                </button>
+                                            </form>
+                                        {% endif %}
                                         <form method="POST" action="{{ url_for('delete_user', user_id=user.id) }}" class="d-inline"
                                               onsubmit="return confirm('Удалить пользователя {{ user.username }}?')">
                                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
@@ -432,7 +537,7 @@
                     <div class="col-md-6">
                         <h6><i class="fas fa-cog text-primary me-2"></i>Функции администратора:</h6>
                         <ul>
-                        <li>Одобрение регистраций учителей</li>
+                        <li>Одобрение регистраций учителей, студентов и работодателей</li>
                         <li>Удаление пользователей</li>
                         <li>Просмотр всех пользователей</li>
                         <li>Контроль доступа к системе</li>
@@ -597,11 +702,22 @@
     outline-offset: 2px;
     border-radius: 3px;
 }
+
+.employer-profile-link {
+    color: #0d6efd;
+    cursor: pointer;
+}
+
+.employer-profile-link:hover {
+    color: #0056b3;
+    text-decoration: underline !important;
+}
 </style>
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('Админ панель загружена, JavaScript работает');
+    /** Счётчик открытий модалки: игнорируем устаревшие ответы fetch при быстром переключении пользователей */
+    let adminProfileModalSeq = 0;
 
     // Экранирование пользовательских данных перед вставкой в HTML (защита от DOM XSS)
     function escapeHtml(value) {
@@ -700,50 +816,45 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Обработка кликов по ссылкам профиля студента
     document.addEventListener('click', function(e) {
-        // Проверяем, кликнули ли по ссылке или по её дочернему элементу
+        const employerLink = e.target.closest('.employer-profile-link');
+        if (employerLink) {
+            e.preventDefault();
+            e.stopPropagation();
+            showEmployerProfile(
+                employerLink.getAttribute('data-user-id'),
+                employerLink.getAttribute('data-username')
+            );
+            return;
+        }
         const linkElement = e.target.closest('.student-profile-link');
         if (linkElement) {
             e.preventDefault();
             e.stopPropagation();
-            console.log('Клик по ссылке профиля студента');
             const userId = linkElement.getAttribute('data-user-id');
             const username = linkElement.getAttribute('data-username');
-            console.log('User ID:', userId, 'Username:', username);
             showStudentProfile(userId, username);
         }
     });
 
     function showStudentProfile(userId, username) {
-        console.log('showStudentProfile вызвана с userId:', userId, 'username:', username);
-        
-        // Проверим, существует ли модальное окно
+        const seq = ++adminProfileModalSeq;
         const modalElement = document.getElementById('studentProfileModal');
-        console.log('Modal element:', modalElement);
         
         if (!modalElement) {
-            console.error('Модальное окно не найдено!');
             alert('Ошибка: модальное окно не найдено');
             return;
         }
         
-        // Показать модальное окно
-        console.log('Создаем Bootstrap Modal...');
-        const modal = new bootstrap.Modal(modalElement);
-        console.log('Modal object:', modal);
+        const modal = bootstrap.Modal.getOrCreateInstance(modalElement);
         
-        // Обновить заголовок
         const titleElement = document.getElementById('studentProfileModalLabel');
-        console.log('Title element:', titleElement);
         if (titleElement) {
             titleElement.innerHTML = 
                 `<i class="fas fa-user-graduate me-2"></i>Профиль студента: ${escapeHtml(username)}`;
         }
         
-        // Показать загрузку
         const contentElement = document.getElementById('studentProfileContent');
-        console.log('Content element:', contentElement);
         if (contentElement) {
             contentElement.innerHTML = `
                 <div class="text-center py-4">
@@ -755,10 +866,8 @@ document.addEventListener('DOMContentLoaded', function() {
             `;
         }
         
-        console.log('Показываем модальное окно...');
         modal.show();
         
-        // Загрузить данные профиля (с отправкой cookies для авторизации)
         fetch(`/admin/student-profile/${userId}`, { credentials: 'same-origin' })
             .then(response => {
                 if (!response.ok) {
@@ -767,6 +876,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 return response.json();
             })
             .then(data => {
+                if (seq !== adminProfileModalSeq) return;
                 if (data.success) {
                     displayStudentProfile(data.student);
                 } else {
@@ -778,8 +888,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     `;
                 }
             })
-            .catch(error => {
-                console.error('Error:', error);
+            .catch(() => {
+                if (seq !== adminProfileModalSeq) return;
                 document.getElementById('studentProfileContent').innerHTML = `
                     <div class="alert alert-danger">
                         <i class="fas fa-exclamation-triangle me-2"></i>
@@ -789,14 +899,135 @@ document.addEventListener('DOMContentLoaded', function() {
             });
     }
 
+    function showEmployerProfile(userId, username) {
+        const seq = ++adminProfileModalSeq;
+        const modalElement = document.getElementById('studentProfileModal');
+        if (!modalElement) {
+            alert('Ошибка: модальное окно не найдено');
+            return;
+        }
+        const modal = bootstrap.Modal.getOrCreateInstance(modalElement);
+        const titleElement = document.getElementById('studentProfileModalLabel');
+        if (titleElement) {
+            titleElement.innerHTML =
+                `<i class="fas fa-building me-2"></i>Профиль компании: ${escapeHtml(username)}`;
+        }
+        const contentElement = document.getElementById('studentProfileContent');
+        if (contentElement) {
+            contentElement.innerHTML = `
+                <div class="text-center py-4">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Загрузка...</span>
+                    </div>
+                    <p class="mt-3 text-muted">Загрузка данных компании...</p>
+                </div>
+            `;
+        }
+        modal.show();
+
+        fetch(`/admin/employer-profile/${userId}`, { credentials: 'same-origin' })
+            .then(response => {
+                if (!response.ok) {
+                    return response.json().catch(() => ({ success: false, error: 'Ошибка сервера' }));
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (seq !== adminProfileModalSeq) return;
+                if (data.success) {
+                    displayEmployerProfile(data.employer);
+                } else {
+                    document.getElementById('studentProfileContent').innerHTML = `
+                        <div class="alert alert-danger">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            ${escapeHtml(data.error || 'Неизвестная ошибка')}
+                        </div>
+                    `;
+                }
+            })
+            .catch(() => {
+                if (seq !== adminProfileModalSeq) return;
+                document.getElementById('studentProfileContent').innerHTML = `
+                    <div class="alert alert-danger">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        Ошибка загрузки профиля компании
+                    </div>
+                `;
+            });
+    }
+
+    function displayEmployerProfile(employer) {
+        const ep = employer.profile;
+        const esc = escapeHtml;
+        if (!ep) {
+            document.getElementById('studentProfileContent').innerHTML = `
+                <div class="alert alert-warning">
+                    <i class="fas fa-info-circle me-2"></i>Профиль компании ещё не заполнен.
+                </div>
+                <p class="mb-1"><strong>Логин:</strong> ${esc(employer.username)}</p>
+                <p class="mb-1"><strong>Email аккаунта:</strong> ${esc(employer.email)}</p>
+                <p class="mb-0"><strong>Статус:</strong> ${employer.is_approved ? 'Одобрен' : 'Ожидает одобрения'}</p>
+            `;
+            return;
+        }
+
+        function line(label, val) {
+            const v = val != null && String(val).trim() !== '' ? esc(String(val)) : '<span class="text-muted">—</span>';
+            return `<tr><th class="text-muted" style="width:40%">${esc(label)}</th><td>${v}</td></tr>`;
+        }
+
+        document.getElementById('studentProfileContent').innerHTML = `
+            <p class="small text-muted mb-3">
+                Аккаунт: <strong>@${esc(employer.username)}</strong> · ${esc(employer.email)}
+                · статус: ${employer.is_approved ? 'одобрен' : 'ожидает одобрения'}
+            </p>
+            <div class="table-responsive">
+                <table class="table table-sm table-bordered mb-0">
+                    <tbody>
+                        ${line('Название компании', ep.company_name)}
+                        ${line('ОГРН / ОГРНИП', ep.ogrn)}
+                        ${line('Описание', ep.company_description)}
+                        ${line('Контактное лицо', ep.contact_person)}
+                        ${line('Должность ответственного', ep.responsible_position)}
+                        ${line('Телефон', ep.phone)}
+                        ${line('Email (в профиле)', ep.email)}
+                        ${line('Сайт', ep.website)}
+                        ${line('Адрес', ep.address)}
+                        ${line('Отрасль', ep.industry)}
+                        ${line('Размер компании', ep.company_size)}
+                        ${line('Лимит приглашений', ep.invitations_quota != null ? String(ep.invitations_quota) : '')}
+                        ${line('Профиль создан', ep.created_at ? new Date(ep.created_at).toLocaleString('ru-RU') : '')}
+                    </tbody>
+                </table>
+            </div>
+        `;
+    }
+
     function displayStudentProfile(student) {
         const profile = student.profile;
         const grades = student.grades || [];
         const esc = escapeHtml;
+
+        if (!profile) {
+            document.getElementById('studentProfileContent').innerHTML = `
+                <div class="alert alert-warning">
+                    <i class="fas fa-info-circle me-2"></i>Анкета студента ещё не заполнена.
+                </div>
+                <p class="mb-1"><strong>Логин:</strong> ${esc(student.username)}</p>
+                <p class="mb-1"><strong>Email:</strong> ${esc(student.email)}</p>
+                <p class="mb-0"><strong>Статус:</strong> ${student.is_approved ? 'Одобрен' : 'Ожидает одобрения'}</p>
+            `;
+            return;
+        }
+
         let avgGrade = 0;
         if (grades.length > 0) {
             avgGrade = grades.reduce((sum, g) => sum + g.grade, 0) / grades.length;
         }
+
+        const groupLine = profile.group
+            ? `${esc(profile.group.name)}${profile.group.degree_label ? ' <span class="badge bg-secondary">' + esc(profile.group.degree_label) + '</span>' : ''}`
+            : 'Не указана';
 
         const photoFilename = profile.photo_filename ? encodeURIComponent(profile.photo_filename) : '';
         const content = `
@@ -810,6 +1041,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                     <h4 class="mb-1">${esc(profile.first_name)} ${esc(profile.last_name)}</h4>
                     <p class="text-muted mb-0">@${esc(student.username)}</p>
+                    <p class="small mb-0 mt-1">${student.is_approved ? '<span class="badge bg-success">Одобрен</span>' : '<span class="badge bg-warning text-dark">Ожидает одобрения</span>'}</p>
                 </div>
                 <div class="col-md-8">
                     <div class="row">
@@ -818,12 +1050,12 @@ document.addEventListener('DOMContentLoaded', function() {
                             <p class="mb-1"><strong>Email:</strong> ${esc(student.email)}</p>
                             <p class="mb-1"><strong>Телефон:</strong> ${esc(profile.phone || 'Не указан')}</p>
                             <p class="mb-1"><strong>Дата рождения:</strong> ${profile.birth_date ? new Date(profile.birth_date).toLocaleDateString('ru-RU') : 'Не указана'}</p>
-                            <p class="mb-1"><strong>Город проживания:</strong> ${esc(profile.city || profile.address || 'Не указан')}</p>
+                            <p class="mb-1"><strong>Населённый пункт проживания:</strong> ${esc(profile.city || profile.address || 'Не указан')}</p>
                             <p class="mb-1"><strong>Готовность к командировкам:</strong> ${profile.ready_for_business_trips ? 'Да' : 'Нет'}</p>
                         </div>
                         <div class="col-sm-6 mb-3">
                             <h6 class="text-success mb-1"><i class="fas fa-graduation-cap me-2"></i>Учебная информация</h6>
-                            <p class="mb-1"><strong>Группа:</strong> ${esc(profile.group ? profile.group.name : 'Не указана')}</p>
+                            <p class="mb-1"><strong>Группа:</strong> ${groupLine}</p>
                             <p class="mb-1"><strong>Форма обучения:</strong> ${esc(profile.study_form || 'Не указана')}</p>
                             <p class="mb-1"><strong>Направление:</strong> ${esc(profile.direction ? profile.direction.name : 'Не указано')}</p>
                             <p class="mb-1"><strong>Специализация:</strong> ${esc(profile.specialization ? profile.specialization.name : 'Не указана')}</p>

@@ -334,6 +334,7 @@ server {
     server_name university-grades.ru;
 
     client_max_body_size 16M;
+    # Не меньше, чем лимит загрузки фото профиля: переменная MAX_PROFILE_PHOTO_BYTES в .env (по умолчанию 5 МБ)
 
     location /static/ {
         alias /var/www/school-grades/static/;

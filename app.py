@@ -8,6 +8,7 @@ from flask_limiter.util import get_remote_address
 from flask_talisman import Talisman
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
+from werkzeug.exceptions import RequestEntityTooLarge
 from werkzeug.middleware.proxy_fix import ProxyFix
 from datetime import datetime, timedelta
 import os
@@ -26,7 +27,7 @@ from forms import (
 )
 from mail import send_email, is_smtp_configured
 from otp_utils import generate_digit_code, hash_otp, verify_otp
-from schemas import SubmitGradesSchema, InvitationSchema
+from schemas import SubmitTeacherTokensSchema, AdminSubmitGradesSchema, InvitationSchema
 from tokens import TOKEN_CATALOG, TOKEN_TYPES
 from marshmallow import ValidationError
 
@@ -50,6 +51,23 @@ app.config['SQLALCHEMY_DATABASE_URI'] = database_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['UPLOAD_FOLDER'] = 'static/uploads'
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
+
+# Фото профиля студента: должно быть ≤ client_max_body_size в nginx (см. DEPLOY_VPS.md)
+try:
+    MAX_PROFILE_PHOTO_BYTES = int(os.getenv('MAX_PROFILE_PHOTO_BYTES', str(5 * 1024 * 1024)))
+except ValueError:
+    MAX_PROFILE_PHOTO_BYTES = 5 * 1024 * 1024
+
+
+def format_file_size_ru(num_bytes: int) -> str:
+    """Краткая подпись размера для сообщений пользователю (RU)."""
+    if num_bytes >= 1024 * 1024:
+        mb = num_bytes / (1024 * 1024)
+        if abs(mb - round(mb)) < 0.01:
+            return f'{int(round(mb))} МБ'
+        return f'{mb:.1f} МБ'.replace('.', ',')
+    kb = num_bytes / 1024
+    return f'{max(1, int(round(kb)))} КБ'
 
 # Настройки сессий
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(
@@ -160,9 +178,23 @@ class Specialization(db.Model):
     name = db.Column(db.String(100), nullable=False, unique=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
+GROUP_DEGREE_BACHELOR = 'bachelor'
+GROUP_DEGREE_MASTER = 'master'
+GROUP_DEGREE_TYPES = (GROUP_DEGREE_BACHELOR, GROUP_DEGREE_MASTER)
+GROUP_DEGREE_LABELS = {
+    GROUP_DEGREE_BACHELOR: 'Бакалавриат',
+    GROUP_DEGREE_MASTER: 'Магистратура',
+}
+
+
 class Group(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(50), nullable=False, unique=True)
+    degree_type = db.Column(
+        db.String(20),
+        nullable=False,
+        default=GROUP_DEGREE_BACHELOR,
+    )
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
 class Subject(db.Model):
@@ -190,8 +222,10 @@ class EmployerProfile(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     company_name = db.Column(db.String(200), nullable=False)
+    ogrn = db.Column(db.String(15), nullable=True)
     company_description = db.Column(db.Text)
     contact_person = db.Column(db.String(100), nullable=False)
+    responsible_position = db.Column(db.String(150), nullable=True)
     phone = db.Column(db.String(20))
     email = db.Column(db.String(120))
     website = db.Column(db.String(200))
@@ -286,6 +320,35 @@ def normalize_email_addr(value):
     return (value or '').strip().lower()
 
 
+def debug_registration_email_from_env():
+    return normalize_email_addr(os.getenv('REGISTRATION_DEBUG_EMAIL', '').strip())
+
+
+def make_unique_debug_registration_email(base_email: str) -> str:
+    """Уникальный email в БД: локальная часть `name+dbg<hex>@domain` (без верификации по коду)."""
+    base = normalize_email_addr(base_email)
+    local, sep, domain = base.partition('@')
+    if not sep:
+        return base
+    for _ in range(40):
+        token = uuid.uuid4().hex[:12]
+        candidate = f'{local}+dbg{token}@{domain}'
+        if len(candidate) > 120:
+            room = 120 - len(domain) - 1 - len('+dbg') - len(token)
+            loc = local[: max(1, room)] if room > 0 else 'u'
+            candidate = f'{loc}+dbg{token}@{domain}'
+        if not User.query.filter_by(email=candidate).first():
+            return candidate
+    return f'{local[:20]}+dbg{uuid.uuid4().hex}@{domain}'[:120]
+
+
+def login_allowed_for_user(user):
+    """Вход: одобренные — любая роль; неодобренные — студенты и работодатели (заполнение профиля до одобрения)."""
+    if user.is_approved:
+        return True
+    return user.role in ('student', 'employer')
+
+
 def resolve_user_by_login_or_email(identifier):
     from sqlalchemy import func
     s = (identifier or '').strip()
@@ -293,7 +356,21 @@ def resolve_user_by_login_or_email(identifier):
         return None
     if '@' in s:
         e = normalize_email_addr(s)
-        return User.query.filter(func.lower(User.email) == e).first()
+        user = User.query.filter(func.lower(User.email) == e).first()
+        if user:
+            return user
+        # Вход по каноническому REGISTRATION_DEBUG_EMAIL: в БД хранится name+dbg...@domain
+        dbg = debug_registration_email_from_env()
+        if dbg and e == dbg:
+            local, _, dom = e.partition('@')
+            if dom:
+                pattern = f'{local}+dbg%@{dom}'
+                return (
+                    User.query.filter(User.email.ilike(pattern))
+                    .order_by(User.id.desc())
+                    .first()
+                )
+        return None
     return User.query.filter_by(username=s).first()
 
 
@@ -387,6 +464,14 @@ def validate_image(file):
 
 def save_profile_photo(file, user_id):
     if file and allowed_file(file.filename):
+        file.seek(0, os.SEEK_END)
+        size = file.tell()
+        file.seek(0)
+        if size > MAX_PROFILE_PHOTO_BYTES:
+            raise ValueError(
+                f"Размер файла ({format_file_size_ru(size)}) превышает допустимый "
+                f"({format_file_size_ru(MAX_PROFILE_PHOTO_BYTES)}). Выберите фото меньшего размера."
+            )
         if not validate_image(file):
             raise ValueError("Файл не является валидным изображением")
         
@@ -447,6 +532,34 @@ def register():
         if User.query.filter_by(username=username).first():
             flash('Пользователь с таким именем уже существует')
             return render_template('register.html', form=form, selected_role=role)
+
+        debug_base = debug_registration_email_from_env()
+        is_debug_reg = bool(debug_base and email == debug_base)
+
+        if is_debug_reg:
+            stored_email = make_unique_debug_registration_email(email)
+            user = User(
+                username=username,
+                email=stored_email,
+                password_hash=generate_password_hash(password),
+                role=role,
+                is_approved=False,
+            )
+            db.session.add(user)
+            db.session.commit()
+            app.logger.info(
+                f'Registration without email verification (REGISTRATION_DEBUG_EMAIL): {username} stored_email={stored_email} role={role}'
+            )
+            if role == 'employer':
+                flash(
+                    'Регистрация успешна (режим отладки). Войдите и заполните профиль компании; '
+                    'каталог студентов — после одобрения администратором.'
+                )
+            else:
+                flash(
+                    'Регистрация успешна (режим отладки). Аккаунт будет доступен после одобрения администратора.'
+                )
+            return redirect(url_for('login'))
 
         if User.query.filter_by(email=email).first():
             flash('Пользователь с таким email уже существует')
@@ -549,6 +662,11 @@ def register_verify(token):
         )
         if user.role == 'student':
             flash('Регистрация подтверждена! Теперь вы можете войти.')
+        elif user.role == 'employer':
+            flash(
+                'Регистрация подтверждена! Войдите и заполните профиль компании. '
+                'Каталог студентов и приглашения станут доступны после одобрения администратором.'
+            )
         else:
             flash('Регистрация подтверждена! Ожидайте одобрения администратора, затем войдите.')
         return redirect(url_for('login'))
@@ -586,7 +704,7 @@ def login():
         user = resolve_user_by_login_or_email(ident)
 
         if user and check_password_hash(user.password_hash, password):
-            if user.is_approved:
+            if login_allowed_for_user(user):
                 session.pop('login_code_sent_for', None)
                 login_user(user, remember=False)
                 app.logger.info(f'User logged in (password): {user.username} from IP: {request.remote_addr}')
@@ -594,7 +712,7 @@ def login():
             app.logger.warning(
                 f'Login attempt for unapproved user: {user.username} from IP: {request.remote_addr}'
             )
-            flash('Ваш аккаунт еще не одобрен администратором')
+            flash('Вход для вашей роли возможен только после одобрения администратором')
         else:
             app.logger.warning(f'Failed password login for: {ident} from IP: {request.remote_addr}')
             flash('Неверный логин/email или пароль')
@@ -687,10 +805,10 @@ def login_verify_code():
         flash('Неверный или просроченный код')
         return redirect(url_for('login'))
 
-    if not user.is_approved:
+    if not login_allowed_for_user(user):
         db.session.delete(row)
         db.session.commit()
-        flash('Ваш аккаунт еще не одобрен администратором')
+        flash('Вход для вашей роли возможен только после одобрения администратором')
         return redirect(url_for('login'))
 
     db.session.delete(row)
@@ -756,8 +874,7 @@ def student_profile():
         if form.desired_specialization_id.data:
             profile.desired_specialization_id = form.desired_specialization_id.data
         
-        if form.birth_date.data:
-            profile.birth_date = form.birth_date.data
+        profile.birth_date = form.birth_date.data if form.birth_date.data else None
         
         # Обработка загрузки фото:
         # сначала сохраняем новый файл, а старый удаляем только после успешного commit.
@@ -791,7 +908,9 @@ def student_profile():
                 profile=profile,
                 groups=Group.query.all(),
                 directions=StudyDirection.query.all(),
-                specializations=Specialization.query.all()
+                specializations=Specialization.query.all(),
+                max_profile_photo_bytes=MAX_PROFILE_PHOTO_BYTES,
+                max_profile_photo_label=format_file_size_ru(MAX_PROFILE_PHOTO_BYTES),
             )
 
         # Удаляем предыдущее фото только когда новое успешно зафиксировано в БД.
@@ -827,7 +946,16 @@ def student_profile():
     groups = Group.query.all()
     directions = StudyDirection.query.all()
     specializations = Specialization.query.all()
-    return render_template('student_profile.html', form=form, profile=profile, groups=groups, directions=directions, specializations=specializations)
+    return render_template(
+        'student_profile.html',
+        form=form,
+        profile=profile,
+        groups=groups,
+        directions=directions,
+        specializations=specializations,
+        max_profile_photo_bytes=MAX_PROFILE_PHOTO_BYTES,
+        max_profile_photo_label=format_file_size_ru(MAX_PROFILE_PHOTO_BYTES),
+    )
 
 @app.route('/employer/dashboard')
 @login_required
@@ -846,50 +974,63 @@ def employer_dashboard():
         invitations_quota = employer_profile.invitations_quota
     invitations_remaining = max(invitations_quota - invitations_sent_count, 0)
 
-    # Получаем всех студентов с их профилями и средними оценками
-    students_query = db.session.query(User, StudentProfile).join(
-        StudentProfile, User.id == StudentProfile.user_id
-    ).filter(User.role == 'student')
-    
-    # Получаем список ID студентов, которым уже было отправлено приглашение этим работодателем
-    invited_student_ids = set()
-    existing_invitations = InterviewInvitation.query.filter_by(employer_id=current_user.id).all()
-    for invitation in existing_invitations:
-        invited_student_ids.add(invitation.student_id)
-    
-    # Характеристики (названия для шаблона)
-    characteristics_list = Characteristic.query.order_by(Characteristic.sort_order, Characteristic.id).all()
-    
-    # Добавляем характеристики и жетоны по студентам (оценки работодателю не показываем)
+    employer_can_browse_students = current_user.is_approved
+    can_send_invitations = bool(employer_can_browse_students and has_employer_profile)
+
     students_with_grades = []
     students_for_js = []
-    
-    for user, profile in students_query.all():
-        characteristics = compute_student_characteristics(user.id)
-        token_counts = get_student_token_counts(user.id)
-        already_invited = user.id in invited_student_ids
-        
-        students_with_grades.append({
-            'user': user,
-            'profile': profile,
-            'characteristics': characteristics,
-            'token_counts': token_counts,
-            'already_invited': already_invited
-        })
-        
-        students_for_js.append({
-            'id': user.id,
-            'name': f"{profile.first_name} {profile.last_name}" if profile else user.username,
-            'study_form': profile.study_form if profile else None,
-            'direction': profile.desired_direction.name if profile and profile.desired_direction else None,
-            'specialization': profile.desired_specialization.name if profile and profile.desired_specialization else None,
-            'birth_date': profile.birth_date.isoformat() if profile and profile.birth_date else None,
-            'photo_filename': profile.photo_filename if profile else None,
-            'characteristics': characteristics,
-            'token_counts': token_counts,
-            'already_invited': already_invited
-        })
-    
+    characteristics_list = []
+
+    if employer_can_browse_students:
+        # Получаем всех студентов с их профилями и средними оценками
+        students_query = db.session.query(User, StudentProfile).join(
+            StudentProfile, User.id == StudentProfile.user_id
+        ).filter(User.role == 'student', User.is_approved.is_(True))
+
+        invited_student_ids = set()
+        existing_invitations = InterviewInvitation.query.filter_by(employer_id=current_user.id).all()
+        for invitation in existing_invitations:
+            invited_student_ids.add(invitation.student_id)
+
+        characteristics_list = Characteristic.query.order_by(Characteristic.sort_order, Characteristic.id).all()
+
+        for user, profile in students_query.all():
+            characteristics = compute_student_characteristics(user.id)
+            token_counts = get_student_token_counts(user.id)
+            already_invited = user.id in invited_student_ids
+
+            students_with_grades.append({
+                'user': user,
+                'profile': profile,
+                'characteristics': characteristics,
+                'token_counts': token_counts,
+                'already_invited': already_invited
+            })
+
+            group_deg_type = None
+            group_deg_label = None
+            if profile and profile.group:
+                group_deg_type = profile.group.degree_type
+                group_deg_label = GROUP_DEGREE_LABELS.get(
+                    profile.group.degree_type, profile.group.degree_type
+                )
+
+            students_for_js.append({
+                'id': user.id,
+                'name': f"{profile.first_name} {profile.last_name}" if profile else user.username,
+                'study_form': profile.study_form if profile else None,
+                'direction': profile.desired_direction.name if profile and profile.desired_direction else None,
+                'specialization': profile.desired_specialization.name if profile and profile.desired_specialization else None,
+                'birth_date': profile.birth_date.isoformat() if profile and profile.birth_date else None,
+                'photo_filename': profile.photo_filename if profile else None,
+                'group_degree_type': group_deg_type,
+                'group_degree_label': group_deg_label,
+                'ready_for_business_trips': bool(profile.ready_for_business_trips) if profile else False,
+                'characteristics': characteristics,
+                'token_counts': token_counts,
+                'already_invited': already_invited
+            })
+
     return render_template(
         'employer_dashboard.html',
         students=students_with_grades,
@@ -900,7 +1041,9 @@ def employer_dashboard():
         has_employer_profile=has_employer_profile,
         invitations_quota=invitations_quota,
         invitations_remaining=invitations_remaining,
-        invitations_sent_count=invitations_sent_count
+        invitations_sent_count=invitations_sent_count,
+        employer_can_browse_students=employer_can_browse_students,
+        can_send_invitations=can_send_invitations,
     )
 
 @app.route('/employer/profile', methods=['GET', 'POST'])
@@ -920,8 +1063,12 @@ def employer_profile():
             db.session.add(profile)
         
         profile.company_name = form.company_name.data
+        profile.ogrn = form.ogrn.data.strip() if form.ogrn.data else None
         profile.company_description = form.company_description.data if form.company_description.data else None
         profile.contact_person = form.contact_person.data
+        profile.responsible_position = (
+            form.responsible_position.data.strip() if form.responsible_position.data else None
+        )
         profile.phone = form.phone.data if form.phone.data else None
         profile.email = form.email.data if form.email.data else None
         profile.website = form.website.data if form.website.data else None
@@ -938,8 +1085,10 @@ def employer_profile():
     profile = current_user.employer_profile
     if profile:
         form.company_name.data = profile.company_name
+        form.ogrn.data = profile.ogrn or ''
         form.company_description.data = profile.company_description
         form.contact_person.data = profile.contact_person
+        form.responsible_position.data = profile.responsible_position or ''
         form.phone.data = profile.phone
         form.email.data = profile.email
         form.website.data = profile.website
@@ -974,10 +1123,20 @@ def grade_students(group_id):
     # Получаем всех студентов из группы
     students = db.session.query(User, StudentProfile).join(
         StudentProfile, User.id == StudentProfile.user_id
-    ).filter(StudentProfile.group_id == group_id).all()
+    ).filter(StudentProfile.group_id == group_id, User.is_approved.is_(True)).all()
     
-    # Получаем все предметы для выбора
-    subjects = Subject.query.all()
+    student_ids = [u.id for u, _p in students]
+    teacher_tokens_by_student = {sid: [] for sid in student_ids}
+    if student_ids:
+        _awards = TokenAward.query.filter(
+            TokenAward.teacher_id == current_user.id,
+            TokenAward.subject_id.is_(None),
+            TokenAward.student_id.in_(student_ids),
+        ).all()
+        for a in _awards:
+            teacher_tokens_by_student[a.student_id].append(a.token_type)
+        for sid in teacher_tokens_by_student:
+            teacher_tokens_by_student[sid] = list(dict.fromkeys(teacher_tokens_by_student[sid]))
 
     students_sequential = []
     for user, profile in students:
@@ -1002,63 +1161,154 @@ def grade_students(group_id):
         'grade_students.html',
         students=students,
         group=group,
-        subjects=subjects,
         token_catalog=TOKEN_CATALOG,
         students_sequential=students_sequential,
+        teacher_tokens_by_student=teacher_tokens_by_student,
     )
 
-@app.route('/teacher/submit_grades', methods=['POST'])
+
+@app.route('/teacher/submit_tokens', methods=['POST'])
 @login_required
 @limiter.limit("20 per minute")
-def submit_grades():
+def submit_teacher_tokens():
     if current_user.role != 'teacher':
-        app.logger.warning(f'Unauthorized access attempt to submit_grades by user {current_user.id} (role: {current_user.role})')
+        app.logger.warning(
+            f'Unauthorized access attempt to submit_teacher_tokens by user {current_user.id} (role: {current_user.role})'
+        )
         return jsonify({'success': False, 'message': 'Доступ запрещен'}), 403
-    
+
     try:
-        schema = SubmitGradesSchema()
-        data = schema.load(request.get_json())
+        data = SubmitTeacherTokensSchema().load(request.get_json())
     except ValidationError as err:
-        app.logger.warning(f'Invalid grades data from user {current_user.id}: {err.messages}')
+        app.logger.warning(f'Invalid teacher tokens data from user {current_user.id}: {err.messages}')
         return jsonify({'success': False, 'message': 'Ошибка валидации', 'errors': err.messages}), 400
-    
-    # Проверка существования предмета
+
+    group = Group.query.get(data['group_id'])
+    if not group:
+        return jsonify({'success': False, 'message': 'Группа не найдена'}), 404
+
+    valid_student_ids = {
+        u.id for u, _p in db.session.query(User, StudentProfile).join(
+            StudentProfile, User.id == StudentProfile.user_id
+        ).filter(
+            StudentProfile.group_id == data['group_id'],
+            User.is_approved.is_(True),
+        ).all()
+    }
+
+    seen_students = set()
+    total_tokens = 0
+    for row in data['grades']:
+        sid = row['student_id']
+        if sid in seen_students:
+            return jsonify({'success': False, 'message': 'Повтор студента в списке'}), 400
+        seen_students.add(sid)
+        if sid not in valid_student_ids:
+            return jsonify({'success': False, 'message': f'Студент {sid} не из этой группы'}), 400
+        student = User.query.get(sid)
+        if not student or student.role != 'student':
+            return jsonify({'success': False, 'message': f'Студент {sid} не найден'}), 404
+        if not student.is_approved:
+            return jsonify({'success': False, 'message': 'Нельзя выдавать жетоны до одобрения студента администратором'}), 400
+        tokens = row.get('tokens') or []
+        for t in tokens:
+            if t not in TOKEN_TYPES:
+                return jsonify({'success': False, 'message': f'Неизвестный тип жетона: {t}'}), 400
+        total_tokens += len(tokens)
+
+    if total_tokens == 0:
+        return jsonify({'success': False, 'message': 'Отметьте хотя бы один жетон у одного студента'}), 400
+
+    for row in data['grades']:
+        sid = row['student_id']
+        tokens = list(dict.fromkeys(row.get('tokens') or []))
+        TokenAward.query.filter(
+            TokenAward.teacher_id == current_user.id,
+            TokenAward.student_id == sid,
+            TokenAward.subject_id.is_(None),
+        ).delete(synchronize_session=False)
+        for token_type in tokens:
+            db.session.add(
+                TokenAward(
+                    student_id=sid,
+                    teacher_id=current_user.id,
+                    token_type=token_type,
+                    subject_id=None,
+                )
+            )
+
+    db.session.commit()
+    app.logger.info(f'Teacher {current_user.id} submitted tokens for group {data["group_id"]}')
+    return jsonify({'success': True, 'message': 'Жетоны успешно сохранены'})
+
+
+@app.route('/admin/grade-students')
+@login_required
+def admin_grade_students_index():
+    if current_user.role != 'admin':
+        flash('Доступ запрещен')
+        return redirect(url_for('index'))
+    groups = Group.query.all()
+    return render_template('admin_grade_students_index.html', groups=groups)
+
+
+@app.route('/admin/grade-students/<int:group_id>')
+@login_required
+def admin_grade_students(group_id):
+    if current_user.role != 'admin':
+        flash('Доступ запрещен')
+        return redirect(url_for('index'))
+
+    group = Group.query.get_or_404(group_id)
+    students = db.session.query(User, StudentProfile).join(
+        StudentProfile, User.id == StudentProfile.user_id
+    ).filter(StudentProfile.group_id == group_id, User.is_approved.is_(True)).all()
+    subjects = Subject.query.all()
+
+    return render_template(
+        'admin_grade_students.html',
+        group=group,
+        students=students,
+        subjects=subjects,
+    )
+
+
+@app.route('/admin/submit_grades', methods=['POST'])
+@login_required
+@limiter.limit("30 per minute")
+def admin_submit_grades():
+    if current_user.role != 'admin':
+        return jsonify({'success': False, 'message': 'Доступ запрещен'}), 403
+
+    try:
+        data = AdminSubmitGradesSchema().load(request.get_json())
+    except ValidationError as err:
+        app.logger.warning(f'Invalid admin grades data from user {current_user.id}: {err.messages}')
+        return jsonify({'success': False, 'message': 'Ошибка валидации', 'errors': err.messages}), 400
+
     subject = Subject.query.get(data['subject_id'])
     if not subject:
         return jsonify({'success': False, 'message': 'Предмет не найден'}), 404
-    
-    # Проверка существования студентов и валидация жетонов
+
     for grade_data in data['grades']:
         student = User.query.get(grade_data['student_id'])
         if not student or student.role != 'student':
             return jsonify({'success': False, 'message': f'Студент {grade_data["student_id"]} не найден'}), 404
-        tokens = grade_data.get('tokens') or []
-        if len(tokens) > 3:
-            return jsonify({'success': False, 'message': 'Не более 3 жетонов на студента'}), 400
-        for t in tokens:
-            if t not in TOKEN_TYPES:
-                return jsonify({'success': False, 'message': f'Неизвестный тип жетона: {t}'}), 400
-        
-        grade = Grade(
-            student_id=grade_data['student_id'],
-            teacher_id=current_user.id,
-            subject_id=data['subject_id'],
-            grade_value=grade_data['grade'],
-            comment=grade_data.get('comment', '')
-        )
-        db.session.add(grade)
-        db.session.flush()  # чтобы grade.id был доступен
-        for token_type in tokens:
-            award = TokenAward(
+        if not student.is_approved:
+            return jsonify({'success': False, 'message': 'Нельзя выставлять оценки студенту до одобрения администратором'}), 400
+
+        db.session.add(
+            Grade(
                 student_id=grade_data['student_id'],
                 teacher_id=current_user.id,
-                token_type=token_type,
-                subject_id=data['subject_id']
+                subject_id=data['subject_id'],
+                grade_value=grade_data['grade'],
+                comment=grade_data.get('comment', ''),
             )
-            db.session.add(award)
-    
+        )
+
     db.session.commit()
-    app.logger.info(f'Teacher {current_user.id} submitted grades for subject {data["subject_id"]}')
+    app.logger.info(f'Admin {current_user.id} submitted grades for subject {data["subject_id"]}')
     return jsonify({'success': True, 'message': 'Оценки успешно сохранены'})
 
 @app.route('/admin/dashboard')
@@ -1072,9 +1322,17 @@ def admin_dashboard():
     users = User.query.all()
     pending_teachers = User.query.filter_by(role='teacher', is_approved=False).all()
     pending_employers = User.query.filter_by(role='employer', is_approved=False).all()
+    pending_students = User.query.filter_by(role='student', is_approved=False).all()
     invitations = InterviewInvitation.query.all()
-    
-    return render_template('admin_dashboard.html', users=users, pending_teachers=pending_teachers, pending_employers=pending_employers, invitations=invitations)
+
+    return render_template(
+        'admin_dashboard.html',
+        users=users,
+        pending_teachers=pending_teachers,
+        pending_employers=pending_employers,
+        pending_students=pending_students,
+        invitations=invitations,
+    )
 
 
 @app.route('/admin/employers')
@@ -1125,6 +1383,29 @@ def approve_employer(user_id):
     
     app.logger.info(f'Admin {current_user.id} approved employer {user_id} ({user.username})')
     flash(f'Работодатель {user.username} одобрен')
+    return redirect(url_for('admin_dashboard'))
+
+
+@app.route('/admin/approve_student/<int:user_id>', methods=['POST'])
+@login_required
+def approve_student(user_id):
+    if current_user.role != 'admin':
+        flash('Доступ запрещен')
+        app.logger.warning(
+            f'Unauthorized access attempt to approve_student by user {current_user.id} (role: {current_user.role})'
+        )
+        return redirect(url_for('index'))
+
+    user = User.query.get_or_404(user_id)
+    if user.role != 'student':
+        flash('Пользователь не является студентом')
+        return redirect(url_for('admin_dashboard'))
+
+    user.is_approved = True
+    db.session.commit()
+
+    app.logger.info(f'Admin {current_user.id} approved student {user_id} ({user.username})')
+    flash(f'Студент {user.username} одобрён')
     return redirect(url_for('admin_dashboard'))
 
 
@@ -1304,7 +1585,18 @@ def admin_groups():
         return redirect(url_for('index'))
     
     groups = Group.query.all()
-    return render_template('admin_groups.html', groups=groups)
+    return render_template(
+        'admin_groups.html',
+        groups=groups,
+        group_degree_labels=GROUP_DEGREE_LABELS,
+        group_degree_types=GROUP_DEGREE_TYPES,
+    )
+
+def _parse_group_degree_type(raw):
+    if raw in GROUP_DEGREE_TYPES:
+        return raw
+    return GROUP_DEGREE_BACHELOR
+
 
 @app.route('/admin/groups/add', methods=['POST'])
 @login_required
@@ -1313,14 +1605,29 @@ def add_group():
         return jsonify({'success': False, 'message': 'Доступ запрещен'})
     
     name = request.form.get('name')
+    degree_type = _parse_group_degree_type(request.form.get('degree_type'))
     if name:
-        group = Group(name=name)
+        group = Group(name=name.strip(), degree_type=degree_type)
         db.session.add(group)
         db.session.commit()
         flash(f'Группа "{name}" добавлена')
     else:
         flash('Название группы не может быть пустым')
     
+    return redirect(url_for('admin_groups'))
+
+
+@app.route('/admin/groups/<int:group_id>/degree', methods=['POST'])
+@login_required
+def update_group_degree(group_id):
+    if current_user.role != 'admin':
+        flash('Доступ запрещен')
+        return redirect(url_for('index'))
+
+    group = Group.query.get_or_404(group_id)
+    group.degree_type = _parse_group_degree_type(request.form.get('degree_type'))
+    db.session.commit()
+    flash(f'Тип группы «{group.name}» обновлён')
     return redirect(url_for('admin_groups'))
 
 @app.route('/admin/groups/delete/<int:group_id>', methods=['POST'])
@@ -1436,6 +1743,12 @@ def send_invitation():
     if current_user.role != 'employer':
         app.logger.warning(f'Unauthorized access attempt to send_invitation by user {current_user.id} (role: {current_user.role})')
         return jsonify({'success': False, 'message': 'Доступ запрещен'}), 403
+
+    if not current_user.is_approved:
+        return jsonify({
+            'success': False,
+            'message': 'Отправка приглашений доступна после одобрения аккаунта администратором',
+        }), 403
     
     # Запрет отправки приглашений без заполненного профиля работодателя
     employer_profile = current_user.employer_profile
@@ -1464,7 +1777,9 @@ def send_invitation():
     student = User.query.get(data['student_id'])
     if not student or student.role != 'student':
         return jsonify({'success': False, 'message': 'Студент не найден'}), 404
-    
+    if not student.is_approved:
+        return jsonify({'success': False, 'message': 'Приглашения можно отправлять только одобренным студентам'}), 400
+
     # Проверка на дубликаты
     existing_invitation = InterviewInvitation.query.filter_by(
         employer_id=current_user.id,
@@ -1522,6 +1837,10 @@ def employer_invitations():
     if current_user.role != 'employer':
         flash('Доступ запрещен')
         return redirect(url_for('index'))
+
+    if not current_user.is_approved:
+        flash('Раздел доступен после одобрения аккаунта администратором.')
+        return redirect(url_for('employer_dashboard'))
     
     # Получаем все приглашения, отправленные этим работодателем
     invitations = InterviewInvitation.query.filter_by(employer_id=current_user.id).order_by(InterviewInvitation.created_at.desc()).all()
@@ -1581,6 +1900,22 @@ def forbidden(error):
     flash('Доступ запрещен')
     return redirect(url_for('index')), 403
 
+
+@app.errorhandler(RequestEntityTooLarge)
+def request_entity_too_large(error):
+    """Слишком большой multipart (например фото) — часто лимит nginx или MAX_CONTENT_LENGTH."""
+    app.logger.warning(
+        'Request entity too large: %s from IP: %s', request.url, request.remote_addr
+    )
+    flash(
+        'Запрос слишком большой (скорее всего, слишком тяжёлое фото). '
+        f'Загружайте изображение не больше {format_file_size_ru(MAX_PROFILE_PHOTO_BYTES)} '
+        'или увеличьте лимит в настройках сервера (nginx client_max_body_size).'
+    )
+    if current_user.is_authenticated and getattr(current_user, 'role', None) == 'student':
+        return redirect(url_for('student_profile'))
+    return redirect(url_for('index'))
+
 @app.route('/admin/student-profile/<int:user_id>')
 @login_required
 def admin_student_profile(user_id):
@@ -1599,8 +1934,18 @@ def admin_student_profile(user_id):
     # Получаем профиль студента
     profile = user.student_profile
     if not profile:
-        return jsonify({'success': False, 'error': 'Профиль студента не найден'}), 404
-    
+        return jsonify({
+            'success': True,
+            'student': {
+                'id': user.id,
+                'username': user.username,
+                'email': user.email,
+                'is_approved': user.is_approved,
+                'profile': None,
+                'grades': [],
+            },
+        })
+
     # Получаем оценки студента с информацией о предметах и учителях
     grades = Grade.query.filter_by(student_id=user_id)\
                       .join(Subject, Grade.subject_id == Subject.id)\
@@ -1608,12 +1953,23 @@ def admin_student_profile(user_id):
                       .add_columns(Subject.name.label('subject_name'), User.username.label('teacher_username'))\
                       .order_by(Grade.created_at.desc())\
                       .all()
-    
+
+    group_info = None
+    if profile.group:
+        group_info = {
+            'name': profile.group.name,
+            'degree_type': profile.group.degree_type,
+            'degree_label': GROUP_DEGREE_LABELS.get(
+                profile.group.degree_type, profile.group.degree_type
+            ),
+        }
+
     # Формируем данные для JSON
     student_data = {
         'id': user.id,
         'username': user.username,
         'email': user.email,
+        'is_approved': user.is_approved,
         'profile': {
             'first_name': profile.first_name,
             'last_name': profile.last_name,
@@ -1625,9 +1981,7 @@ def admin_student_profile(user_id):
             'photo_filename': profile.photo_filename,
             'study_form': profile.study_form,
             'about_me': profile.about_me,
-            'group': {
-                'name': profile.group.name if profile.group else None
-            } if profile.group else None,
+            'group': group_info,
             'direction': {
                 'name': profile.desired_direction.name if profile.desired_direction else None
             } if profile.desired_direction else None,
@@ -1652,6 +2006,54 @@ def admin_student_profile(user_id):
     }
     
     return jsonify({'success': True, 'student': student_data})
+
+
+@app.route('/admin/employer-profile/<int:user_id>')
+@login_required
+def admin_employer_profile(user_id):
+    """Полный профиль компании работодателя для модального окна в админ-панели."""
+    if current_user.role != 'admin':
+        return jsonify({'success': False, 'error': 'Доступ запрещен'}), 403
+
+    user = User.query.get_or_404(user_id)
+    if user.role != 'employer':
+        return jsonify({'success': False, 'error': 'Пользователь не является работодателем'}), 400
+
+    ep = user.employer_profile
+    if not ep:
+        return jsonify({
+            'success': True,
+            'employer': {
+                'id': user.id,
+                'username': user.username,
+                'email': user.email,
+                'is_approved': user.is_approved,
+                'profile': None,
+            },
+        })
+
+    employer_data = {
+        'id': user.id,
+        'username': user.username,
+        'email': user.email,
+        'is_approved': user.is_approved,
+        'profile': {
+            'company_name': ep.company_name,
+            'ogrn': ep.ogrn,
+            'company_description': ep.company_description,
+            'contact_person': ep.contact_person,
+            'responsible_position': ep.responsible_position,
+            'phone': ep.phone,
+            'email': ep.email,
+            'website': ep.website,
+            'address': ep.address,
+            'industry': ep.industry,
+            'company_size': ep.company_size,
+            'invitations_quota': ep.invitations_quota,
+            'created_at': ep.created_at.isoformat() if ep.created_at else None,
+        },
+    }
+    return jsonify({'success': True, 'employer': employer_data})
 
 if __name__ == '__main__':
     with app.app_context():

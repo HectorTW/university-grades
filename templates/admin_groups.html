@@ -34,6 +34,14 @@
                         <input type="text" class="form-control" id="name" name="name" required>
                         <div class="form-text">Например: ИС-21, ПИ-22, МТ-23</div>
                     </div>
+                    <div class="mb-3">
+                        <label for="degree_type" class="form-label">Тип группы</label>
+                        <select class="form-select" id="degree_type" name="degree_type">
+                            {% for key in group_degree_types %}
+                            <option value="{{ key }}">{{ group_degree_labels[key] }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
                     <button type="submit" class="btn btn-primary">
                         <i class="fas fa-plus me-2"></i>Добавить группу
                     </button>
@@ -54,21 +62,38 @@
                 {% if groups %}
                     <div class="list-group">
                         {% for group in groups %}
-                        <div class="list-group-item d-flex justify-content-between align-items-center">
-                            <div>
-                                <h6 class="mb-1">{{ group.name }}</h6>
-                                <small class="text-muted">Создана: {{ group.created_at.strftime('%d.%m.%Y') }}</small>
+                        <div class="list-group-item">
+                            <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-2">
+                                <div>
+                                    <h6 class="mb-1">{{ group.name }}</h6>
+                                    <small class="text-muted">Создана: {{ group.created_at.strftime('%d.%m.%Y') }}</small>
+                                </div>
+                                <div class="d-flex flex-wrap align-items-center gap-2">
+                                    <span class="badge bg-secondary">{{ group_degree_labels.get(group.degree_type, group.degree_type) }}</span>
+                                    <span class="badge bg-primary">{{ group.students|length }} студентов</span>
+                                    <form method="POST" action="{{ url_for('delete_group', group_id=group.id) }}" class="d-inline"
+                                          onsubmit="return confirm('Вы уверены, что хотите удалить группу {{ group.name }}?')">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                        <button type="submit" class="btn btn-sm btn-outline-danger">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </form>
+                                </div>
                             </div>
-                            <div>
-                                <span class="badge bg-primary me-2">{{ group.students|length }} студентов</span>
-                                <form method="POST" action="{{ url_for('delete_group', group_id=group.id) }}" class="d-inline"
-                                      onsubmit="return confirm('Вы уверены, что хотите удалить группу {{ group.name }}?')">
-                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-                                    <button type="submit" class="btn btn-sm btn-outline-danger">
-                                        <i class="fas fa-trash"></i>
-                                    </button>
-                                </form>
-                            </div>
+                            <form method="POST" action="{{ url_for('update_group_degree', group_id=group.id) }}" class="row g-2 align-items-end">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                <div class="col-auto">
+                                    <label class="form-label small mb-0 text-muted">Тип группы</label>
+                                    <select class="form-select form-select-sm" name="degree_type" style="min-width: 11rem;">
+                                        {% for key in group_degree_types %}
+                                        <option value="{{ key }}" {% if group.degree_type == key %}selected{% endif %}>{{ group_degree_labels[key] }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="col-auto">
+                                    <button type="submit" class="btn btn-sm btn-outline-primary">Сохранить</button>
+                                </div>
+                            </form>
                         </div>
                         {% endfor %}
                     </div>

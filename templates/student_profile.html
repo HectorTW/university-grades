@@ -30,8 +30,8 @@
                                     </div>
                                 {% endif %}
                                 <input type="file" class="form-control" id="photo" name="photo" 
-                                       accept="image/*" onchange="previewPhoto(this)">
-                                <div class="form-text">Загрузите фото профиля (JPG, PNG, GIF)</div>
+                                       accept="image/jpeg,image/png,image/gif,.jpg,.jpeg,.png,.gif">
+                                <p class="mb-0 small text-danger d-none" id="photo-size-error" role="alert"></p>
                             </div>
                         </div>
                         <div class="col-md-8">
@@ -99,11 +99,14 @@
                         </div>
                         
                         <div class="col-md-6 mb-3">
-                            <label for="birth_date" class="form-label">
+                            <label for="birth_date_display" class="form-label">
                                 <i class="fas fa-calendar me-1"></i>Дата рождения
                             </label>
-                            <input type="date" class="form-control" id="birth_date" name="birth_date" 
-                                   value="{{ profile.birth_date.strftime('%Y-%m-%d') if profile and profile.birth_date else '' }}">
+                            <input type="text" class="form-control" id="birth_date_display"
+                                   inputmode="numeric" autocomplete="bday" maxlength="10"
+                                   placeholder="ДД.ММ.ГГГГ"
+                                   value="{{ profile.birth_date.strftime('%d.%m.%Y') if profile and profile.birth_date else '' }}">
+                            <input type="hidden" name="birth_date" id="birth_date" value="{{ profile.birth_date.strftime('%Y-%m-%d') if profile and profile.birth_date else '' }}">
                         </div>
                     </div>
                     
@@ -141,7 +144,7 @@
                     
                     <div class="mb-3">
                         <label for="city" class="form-label">
-                            <i class="fas fa-city me-1"></i>Город проживания
+                            <i class="fas fa-city me-1"></i>Населённый пункт проживания
                         </label>
                         <input type="text" class="form-control" id="city" name="city" list="russian-cities-datalist"
                                value="{{ profile.address if profile and profile.address else '' }}"
@@ -206,11 +209,27 @@
 {% endblock %}
 
 {% block scripts %}
+<script type="application/json" id="student-profile-config">
+{{ {
+  'maxBytes': max_profile_photo_bytes|int,
+  'maxLabel': max_profile_photo_label,
+  'citiesUrl': url_for('static', filename='data/russian_cities.json')
+}|tojson|safe }}
+</script>
 <script>
 (function () {
-    const datalist = document.getElementById('russian-cities-datalist');
-    if (!datalist) return;
-    fetch('{{ url_for("static", filename="data/russian_cities.json") }}')
+    var cfg = {};
+    var cfgEl = document.getElementById('student-profile-config');
+    if (cfgEl) {
+        try {
+            cfg = JSON.parse(cfgEl.textContent);
+        } catch (e) {
+            return;
+        }
+    }
+    var datalist = document.getElementById('russian-cities-datalist');
+    if (!datalist || !cfg.citiesUrl) return;
+    fetch(cfg.citiesUrl)
         .then(function (r) { return r.json(); })
         .then(function (cities) {
             cities.forEach(function (name) {
@@ -221,22 +240,135 @@
         })
         .catch(function () { /* список необязателен */ });
 })();
-function previewPhoto(input) {
-    if (input.files && input.files[0]) {
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            const preview = document.querySelector('.profile-photo-preview');
-            const placeholder = document.querySelector('.profile-photo-placeholder');
-            
+
+(function () {
+    var cfg = {};
+    var cfgEl = document.getElementById('student-profile-config');
+    if (cfgEl) {
+        try {
+            cfg = JSON.parse(cfgEl.textContent);
+        } catch (e) {
+            cfg = { maxBytes: 0, maxLabel: '' };
+        }
+    }
+    var maxBytes = typeof cfg.maxBytes === 'number' ? cfg.maxBytes : 0;
+    var maxLabel = typeof cfg.maxLabel === 'string' ? cfg.maxLabel : '';
+
+    function formatSizeRu(bytes) {
+        if (bytes >= 1048576) {
+            var mb = bytes / 1048576;
+            return (Math.abs(mb - Math.round(mb)) < 0.01 ? String(Math.round(mb)) : mb.toFixed(1).replace('.', ',')) + ' МБ';
+        }
+        return Math.max(1, Math.round(bytes / 1024)) + ' КБ';
+    }
+
+    function clearPhotoError() {
+        var err = document.getElementById('photo-size-error');
+        var input = document.getElementById('photo');
+        if (err) {
+            err.textContent = '';
+            err.classList.add('d-none');
+        }
+        if (input) input.setCustomValidity('');
+    }
+
+    function showPhotoError(msg) {
+        var err = document.getElementById('photo-size-error');
+        var input = document.getElementById('photo');
+        if (err) {
+            err.textContent = msg;
+            err.classList.remove('d-none');
+        }
+        if (input) input.setCustomValidity(msg);
+    }
+
+    function previewPhoto(input) {
+        clearPhotoError();
+        if (!input.files || !input.files[0]) return;
+        var f = input.files[0];
+        if (f.size > maxBytes) {
+            input.value = '';
+            showPhotoError(
+                'Файл слишком большой (' + formatSizeRu(f.size) + '). Допустимо не более ' + maxLabel + '.'
+            );
+            return;
+        }
+        var reader = new FileReader();
+        reader.onload = function (e) {
+            var preview = document.querySelector('.profile-photo-preview');
+            var placeholder = document.querySelector('.profile-photo-placeholder');
             if (preview) {
                 preview.src = e.target.result;
             } else if (placeholder) {
-                placeholder.innerHTML = `<img src="${e.target.result}" alt="Фото профиля" class="profile-photo-preview mb-3">`;
+                placeholder.innerHTML = '<img src="' + e.target.result + '" alt="Фото профиля" class="profile-photo-preview mb-3">';
             }
         };
-        reader.readAsDataURL(input.files[0]);
+        reader.readAsDataURL(f);
     }
-}
+
+    var photoInput = document.getElementById('photo');
+    if (photoInput) {
+        photoInput.addEventListener('change', function () { previewPhoto(this); });
+    }
+})();
+
+(function () {
+    var visible = document.getElementById('birth_date_display');
+    var hidden = document.getElementById('birth_date');
+    if (!visible || !hidden) return;
+
+    function digitsToFormatted(digits) {
+        var d = digits.replace(/\D/g, '').slice(0, 8);
+        if (d.length <= 2) return d;
+        if (d.length <= 4) return d.slice(0, 2) + '.' + d.slice(2);
+        return d.slice(0, 2) + '.' + d.slice(2, 4) + '.' + d.slice(4);
+    }
+
+    function tryParseIso(str) {
+        var m = String(str).trim().match(/^(\d{2})\.(\d{2})\.(\d{4})$/);
+        if (!m) return '';
+        var day = parseInt(m[1], 10);
+        var month = parseInt(m[2], 10);
+        var year = parseInt(m[3], 10);
+        var dt = new Date(year, month - 1, day);
+        if (dt.getFullYear() !== year || dt.getMonth() !== month - 1 || dt.getDate() !== day) return '';
+        return year + '-' + String(month).padStart(2, '0') + '-' + String(day).padStart(2, '0');
+    }
+
+    function syncHidden() {
+        var raw = visible.value.trim();
+        if (!raw) {
+            hidden.value = '';
+            visible.setCustomValidity('');
+            return;
+        }
+        hidden.value = tryParseIso(visible.value) || '';
+        visible.setCustomValidity('');
+        var v = visible.value.replace(/\D/g, '');
+        if (v.length > 0 && v.length < 8) {
+            visible.setCustomValidity('Введите дату полностью: ДД.ММ.ГГГГ');
+        } else if (raw && !hidden.value) {
+            visible.setCustomValidity('Проверьте дату (например, 31.02 не бывает)');
+        }
+    }
+
+    visible.addEventListener('input', function () {
+        var formatted = digitsToFormatted(visible.value);
+        if (formatted !== visible.value) visible.value = formatted;
+        syncHidden();
+    });
+
+    visible.addEventListener('blur', syncHidden);
+
+    var formBd = document.getElementById('student-profile-form');
+    if (formBd) {
+        formBd.addEventListener('submit', function () {
+            syncHidden();
+        });
+    }
+
+    syncHidden();
+})();
 
 (function () {
     const form = document.getElementById('student-profile-form');
@@ -284,6 +416,33 @@ function previewPhoto(input) {
     form.addEventListener('input', validateFormUI);
     form.addEventListener('change', validateFormUI);
     form.addEventListener('submit', function (e) {
+        var cfgEl = document.getElementById('student-profile-config');
+        var cfg = {};
+        if (cfgEl) {
+            try {
+                cfg = JSON.parse(cfgEl.textContent);
+            } catch (err) {
+                cfg = {};
+            }
+        }
+        var maxBytes = typeof cfg.maxBytes === 'number' ? cfg.maxBytes : 0;
+        var maxLabel = typeof cfg.maxLabel === 'string' ? cfg.maxLabel : '';
+        var photoInput = document.getElementById('photo');
+        if (photoInput && photoInput.files && photoInput.files[0]) {
+            var f = photoInput.files[0];
+            if (f.size > maxBytes) {
+                e.preventDefault();
+                e.stopPropagation();
+                var err = document.getElementById('photo-size-error');
+                if (err) {
+                    err.textContent = 'Файл слишком большой. Допустимо не более ' + maxLabel + '.';
+                    err.classList.remove('d-none');
+                }
+                photoInput.setCustomValidity('Файл превышает ' + maxLabel);
+                photoInput.reportValidity();
+                return;
+            }
+        }
         validateFormUI();
         if (!form.checkValidity()) {
             e.preventDefault();

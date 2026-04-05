@@ -81,7 +81,7 @@ class StudentProfileForm(FlaskForm):
             message='Некорректный номер телефона'
         )
     ])
-    city = StringField('Город проживания', validators=[
+    city = StringField('Населённый пункт проживания', validators=[
         Optional(),
         Length(max=200, message='Название города слишком длинное')
     ])
@@ -102,18 +102,32 @@ class StudentProfileForm(FlaskForm):
     birth_date = DateField('Дата рождения', validators=[Optional()])
 
 class EmployerProfileForm(FlaskForm):
-    company_name = StringField('Название компании', validators=[
-        DataRequired(message='Название компании обязательно'),
+    company_name = StringField('Название организации', validators=[
+        DataRequired(message='Название организации обязательно'),
         Length(max=200, message='Название слишком длинное')
     ])
+    ogrn = StringField(
+        'ОГРН / ОГРНИП',
+        filters=[lambda x: x.strip() if isinstance(x, str) else x],
+        validators=[
+            Optional(),
+            Length(max=15, message='ОГРН не более 15 цифр'),
+            Regexp(r'^\d{13}(\d{2})?$', message='Укажите 13 цифр ОГРН или 15 цифр ОГРНИП'),
+        ],
+    )
     company_description = TextAreaField('Описание компании', validators=[
         Optional(),
         Length(max=5000, message='Описание слишком длинное')
     ])
-    contact_person = StringField('Контактное лицо', validators=[
-        DataRequired(message='Контактное лицо обязательно'),
-        Length(max=100, message='Имя слишком длинное')
+    contact_person = StringField('ФИО ответственного', validators=[
+        DataRequired(message='ФИО ответственного обязательно'),
+        Length(max=100, message='ФИО слишком длинное')
     ])
+    responsible_position = StringField(
+        'Должность ответственного',
+        filters=[lambda x: x.strip() if isinstance(x, str) else x],
+        validators=[Optional(), Length(max=150, message='Должность слишком длинная')],
+    )
     phone = StringField('Телефон', validators=[
         Optional(),
         Regexp(r'^\+?[1-9]\d{1,14}$', message='Некорректный номер телефона')

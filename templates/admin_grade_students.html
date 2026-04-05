@@ -1,0 +1,314 @@
+{% extends "base.html" %}
+
+{% block title %}Оценки: {{ group.name }} — СтартТруд{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2>
+                <i class="fas fa-star me-2"></i>
+                Оценки — {{ group.name }}
+            </h2>
+            <a href="{{ url_for('admin_grade_students_index') }}" class="btn btn-secondary">
+                <i class="fas fa-arrow-left me-2"></i>К группам
+            </a>
+        </div>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-book me-2"></i>
+                    Предмет
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label for="subjectSearch" class="form-label">
+                        <i class="fas fa-graduation-cap me-1"></i>Предмет *
+                    </label>
+                    <div class="position-relative">
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="fas fa-search"></i></span>
+                            <input type="text" class="form-control" id="subjectSearch"
+                                   placeholder="Поиск предмета..." autocomplete="off">
+                            <button class="btn btn-outline-secondary" type="button" id="clearSubjectSearch">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                        <div id="subjectDropdown" class="dropdown-menu w-100" style="display: none; max-height: 300px; overflow-y: auto;">
+                            {% for subject in subjects %}
+                                <a class="dropdown-item subject-option" href="#"
+                                   data-subject-id="{{ subject.id }}"
+                                   data-subject-name="{{ subject.name|lower }}">
+                                    {{ subject.name }}
+                                </a>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    <input type="hidden" id="subject_id" name="subject_id">
+                    <div id="selectedSubject" class="mt-2" style="display: none;">
+                        <div class="alert alert-success mb-0">
+                            <i class="fas fa-check me-2"></i>
+                            <strong>Выбран:</strong> <span id="selectedSubjectName"></span>
+                            <button type="button" class="btn btn-sm btn-outline-danger ms-2" id="clearSelectedSubject">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="alert alert-info mb-0 small">
+                    <i class="fas fa-info-circle me-2"></i>
+                    Оценки (звёзды) сохраняются по выбранному предмету; комментарий доступен при оценке 1–2 звезды.
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12">
+        <div class="card card-students-grades">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-users me-2"></i>Студенты</h5>
+            </div>
+            <div class="card-body">
+                {% if students %}
+                    <div class="table-responsive table-responsive-avatar">
+                        <table class="table table-hover table-admin-grades">
+                            <thead>
+                                <tr>
+                                    <th>Студент</th>
+                                    <th class="text-center" style="width:14rem">Оценка (1–5)</th>
+                                    <th class="text-center">Комментарий</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for user, profile in students %}
+                                {% set _fn_trim = (profile.first_name or '')|trim %}
+                                {% set fn_parts = _fn_trim.split() %}
+                                <tr class="student-row" data-student-id="{{ user.id }}">
+                                    <td>
+                                        <div class="d-flex align-items-center gap-2">
+                                            {% if profile.photo_filename %}
+                                                <img src="{{ url_for('uploaded_file', filename=profile.photo_filename) }}" class="rounded-circle border" width="32" height="32" alt="">
+                                            {% else %}
+                                                <div class="rounded-circle bg-primary bg-opacity-10 d-flex align-items-center justify-content-center" style="width:32px;height:32px"><i class="fas fa-user text-primary small"></i></div>
+                                            {% endif %}
+                                            <span class="fw-semibold">
+                                                {% if fn_parts|length >= 2 and fn_parts[1] %}
+                                                    {{ profile.last_name }} {{ fn_parts[0] }} {{ fn_parts[1][0] }}.
+                                                {% else %}
+                                                    {{ profile.last_name }} {{ profile.first_name }}
+                                                {% endif %}
+                                            </span>
+                                        </div>
+                                    </td>
+                                    <td class="text-center align-middle">
+                                        <div class="star-rating d-inline-flex gap-1" data-student-id="{{ user.id }}">
+                                            {% for i in range(1, 6) %}
+                                            <span class="star" data-value="{{ i }}"><i class="far fa-star"></i></span>
+                                            {% endfor %}
+                                        </div>
+                                        <input type="hidden" class="grade-input" value="">
+                                    </td>
+                                    <td class="align-middle">
+                                        <div class="low-grade-comment-wrap d-none">
+                                            <textarea class="form-control form-control-sm comment-input" rows="2" placeholder="Комментарий при низкой оценке"></textarea>
+                                        </div>
+                                        <span class="text-muted small comment-placeholder">—</span>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="d-flex justify-content-end mt-3">
+                        <button type="button" class="btn btn-success btn-lg" id="submit-admin-grades">
+                            <i class="fas fa-save me-2"></i>Сохранить оценки
+                        </button>
+                    </div>
+                {% else %}
+                    <p class="text-muted mb-0">Нет студентов в группе.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<style>
+.star-rating .star { cursor: pointer; color: #ddd; font-size: 1.2rem; }
+.star-rating .star.active { color: #ffc107; }
+.star-rating .star.active i { font-weight: 900; }
+#subjectDropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    z-index: 1000;
+    border: 1px solid #dee2e6;
+    border-top: none;
+    border-radius: 0 0 0.375rem 0.375rem;
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+}
+.subject-option { padding: 0.5rem 1rem; }
+.subject-option:hover { background: #f8f9fa; }
+#subjectSearch { border-right: none; }
+#clearSubjectSearch { border-left: none; display: none; }
+</style>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const subjectSearch = document.getElementById('subjectSearch');
+    const subjectDropdown = document.getElementById('subjectDropdown');
+    const subjectOptions = document.querySelectorAll('.subject-option');
+    const clearSubjectSearch = document.getElementById('clearSubjectSearch');
+    const selectedSubject = document.getElementById('selectedSubject');
+    const selectedSubjectName = document.getElementById('selectedSubjectName');
+    const clearSelectedSubject = document.getElementById('clearSelectedSubject');
+    const hiddenSubjectId = document.getElementById('subject_id');
+
+    function filterSubjects() {
+        const searchTerm = subjectSearch.value.toLowerCase().trim();
+        let visibleCount = 0;
+        subjectOptions.forEach(option => {
+            const subjectName = option.getAttribute('data-subject-name');
+            const isMatch = subjectName.includes(searchTerm);
+            option.style.display = isMatch ? 'block' : 'none';
+            if (isMatch) visibleCount++;
+        });
+        subjectDropdown.style.display = (searchTerm !== '' && visibleCount > 0) ? 'block' : 'none';
+        clearSubjectSearch.style.display = searchTerm ? 'block' : 'none';
+    }
+
+    subjectSearch.addEventListener('input', filterSubjects);
+    subjectSearch.addEventListener('focus', function() {
+        if (subjectSearch.value.trim() !== '') filterSubjects();
+    });
+    document.addEventListener('click', function(e) {
+        if (!e.target.closest('#subjectSearch') && !e.target.closest('#subjectDropdown')) {
+            subjectDropdown.style.display = 'none';
+        }
+    });
+    subjectOptions.forEach(option => {
+        option.addEventListener('click', function(e) {
+            e.preventDefault();
+            hiddenSubjectId.value = this.getAttribute('data-subject-id');
+            selectedSubjectName.textContent = this.textContent.trim();
+            selectedSubject.style.display = 'block';
+            subjectDropdown.style.display = 'none';
+            subjectSearch.value = '';
+            clearSubjectSearch.style.display = 'none';
+        });
+    });
+    clearSubjectSearch.addEventListener('click', function() {
+        subjectSearch.value = '';
+        subjectDropdown.style.display = 'none';
+        clearSubjectSearch.style.display = 'none';
+        subjectSearch.focus();
+    });
+    clearSelectedSubject.addEventListener('click', function() {
+        hiddenSubjectId.value = '';
+        selectedSubject.style.display = 'none';
+        subjectSearch.focus();
+    });
+
+    function syncLowGradeComment(row) {
+        const hidden = row.querySelector('.grade-input');
+        const wrap = row.querySelector('.low-grade-comment-wrap');
+        const placeholder = row.querySelector('.comment-placeholder');
+        const input = row.querySelector('.comment-input');
+        if (!wrap || !hidden) return;
+        const v = String(hidden.value || '');
+        const show = v === '1' || v === '2';
+        wrap.classList.toggle('d-none', !show);
+        if (placeholder) placeholder.style.display = show ? 'none' : '';
+        if (!show && input) input.value = '';
+    }
+
+    function setStarVisual(ratingEl, value) {
+        const stars = ratingEl.querySelectorAll('.star');
+        const v = parseInt(value, 10) || 0;
+        stars.forEach((s, i) => {
+            const active = i < v;
+            s.classList.toggle('active', active);
+            const icon = s.querySelector('i');
+            if (icon) {
+                icon.classList.remove('far', 'fas');
+                icon.classList.add(active ? 'fas' : 'far');
+            }
+        });
+    }
+
+    document.querySelectorAll('tbody tr.student-row .star-rating').forEach(rating => {
+        const row = rating.closest('tr');
+        const stars = rating.querySelectorAll('.star');
+        const hidden = row.querySelector('.grade-input');
+        stars.forEach((star, idx) => {
+            star.addEventListener('click', function() {
+                const val = idx + 1;
+                setStarVisual(rating, val);
+                hidden.value = String(val);
+                syncLowGradeComment(row);
+            });
+        });
+    });
+
+    const submitAdminBtn = document.getElementById('submit-admin-grades');
+    if (submitAdminBtn) {
+        submitAdminBtn.addEventListener('click', function() {
+            const subjectId = document.getElementById('subject_id').value;
+            if (!subjectId) {
+                alert('Выберите предмет');
+                return;
+            }
+            const grades = [];
+            document.querySelectorAll('tbody tr.student-row').forEach(row => {
+                const gradeVal = row.querySelector('.grade-input').value;
+                const commentEl = row.querySelector('.comment-input');
+                const comment = commentEl ? commentEl.value : '';
+                if (gradeVal) {
+                    grades.push({
+                        student_id: parseInt(row.dataset.studentId, 10),
+                        grade: parseInt(gradeVal, 10),
+                        comment: comment || ''
+                    });
+                }
+            });
+            if (grades.length === 0) {
+                alert('Поставьте хотя бы одну оценку (звёзды)');
+                return;
+            }
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+            const headers = { 'Content-Type': 'application/json' };
+            if (csrfToken) headers['X-CSRFToken'] = csrfToken;
+
+            fetch('/admin/submit_grades', {
+                method: 'POST',
+                headers: headers,
+                body: JSON.stringify({ subject_id: parseInt(subjectId, 10), grades: grades }),
+                credentials: 'same-origin'
+            })
+            .then(r => r.ok ? r.json() : r.json().then(d => { throw new Error(d.message || 'Ошибка'); }))
+            .then(data => {
+                if (data.success) {
+                    alert('Оценки успешно сохранены');
+                    window.location.reload();
+                } else {
+                    alert(data.message || 'Ошибка');
+                }
+            })
+            .catch(err => {
+                console.error(err);
+                alert(err.message || 'Ошибка при сохранении');
+            });
+        });
+    }
+});
+</script>
+{% endblock %}
