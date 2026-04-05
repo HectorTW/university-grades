@@ -263,6 +263,8 @@ class StudentProfile(db.Model):
     desired_direction_id = db.Column(db.Integer, db.ForeignKey('study_direction.id'))
     desired_specialization_id = db.Column(db.Integer, db.ForeignKey('specialization.id'))
     about_me = db.Column(db.Text)  # О себе
+    current_workplace = db.Column(db.String(200))  # место работы (при наличии)
+    current_job_title = db.Column(db.String(150))  # должность (при наличии)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
     # Связи
@@ -863,6 +865,12 @@ def student_profile():
         profile.ready_for_business_trips = bool(form.ready_for_business_trips.data)
         profile.study_form = form.study_form.data if form.study_form.data else None
         profile.about_me = form.about_me.data if form.about_me.data else None
+        profile.current_workplace = (
+            form.current_workplace.data.strip() if form.current_workplace.data and form.current_workplace.data.strip() else None
+        )
+        profile.current_job_title = (
+            form.current_job_title.data.strip() if form.current_job_title.data and form.current_job_title.data.strip() else None
+        )
         
         # Обработка группы
         if form.group_id.data:
@@ -942,6 +950,8 @@ def student_profile():
         form.desired_direction_id.data = profile.desired_direction_id
         form.desired_specialization_id.data = profile.desired_specialization_id
         form.birth_date.data = profile.birth_date
+        form.current_workplace.data = profile.current_workplace
+        form.current_job_title.data = profile.current_job_title
     
     groups = Group.query.all()
     directions = StudyDirection.query.all()
@@ -1026,6 +1036,8 @@ def employer_dashboard():
                 'group_degree_type': group_deg_type,
                 'group_degree_label': group_deg_label,
                 'ready_for_business_trips': bool(profile.ready_for_business_trips) if profile else False,
+                'current_workplace': profile.current_workplace if profile else None,
+                'current_job_title': profile.current_job_title if profile else None,
                 'characteristics': characteristics,
                 'token_counts': token_counts,
                 'already_invited': already_invited
@@ -1981,6 +1993,8 @@ def admin_student_profile(user_id):
             'photo_filename': profile.photo_filename,
             'study_form': profile.study_form,
             'about_me': profile.about_me,
+            'current_workplace': profile.current_workplace,
+            'current_job_title': profile.current_job_title,
             'group': group_info,
             'direction': {
                 'name': profile.desired_direction.name if profile.desired_direction else None

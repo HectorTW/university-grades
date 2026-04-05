@@ -100,6 +100,14 @@ class StudentProfileForm(FlaskForm):
     desired_direction_id = IntegerField('Направление', validators=[Optional(), NumberRange(min=1)])
     desired_specialization_id = IntegerField('Специализация', validators=[Optional(), NumberRange(min=1)])
     birth_date = DateField('Дата рождения', validators=[Optional()])
+    current_workplace = StringField('Место работы', validators=[
+        Optional(),
+        Length(max=200, message='Название места работы слишком длинное'),
+    ])
+    current_job_title = StringField('Должность', validators=[
+        Optional(),
+        Length(max=150, message='Название должности слишком длинное'),
+    ])
 
 class EmployerProfileForm(FlaskForm):
     company_name = StringField('Название организации', validators=[

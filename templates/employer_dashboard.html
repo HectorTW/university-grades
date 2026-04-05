@@ -488,9 +488,11 @@ document.addEventListener('DOMContentLoaded', function() {
             const src = `/static/icons/${encodeURIComponent(t.icon)}`;
             const tip = escapeHtml(t.description || name);
             const alt = escapeHtml(name);
+            const label = escapeHtml(name);
             return `
                 <div class="student-token-item ${cnt > 0 ? 'has' : 'zero'}" title="${tip}">
                     <img class="student-token-icon" src="${src}" alt="${alt}">
+                    <div class="student-token-label">${label}</div>
                     <div class="student-token-count">×${cnt}</div>
                 </div>
             `;
@@ -534,6 +536,12 @@ document.addEventListener('DOMContentLoaded', function() {
                             <div class="col-12">
                                 <div><span class="text-muted small">Специализация:</span> <span>${escapeHtml(student.specialization || 'Не указана')}</span></div>
                             </div>
+                            ${(student.current_workplace || student.current_job_title) ? `
+                            <div class="col-12">
+                                <div class="text-muted small mb-1">Текущая работа</div>
+                                ${student.current_workplace ? `<div><span class="text-muted small">Место:</span> <span>${escapeHtml(student.current_workplace)}</span></div>` : ''}
+                                ${student.current_job_title ? `<div><span class="text-muted small">Должность:</span> <span>${escapeHtml(student.current_job_title)}</span></div>` : ''}
+                            </div>` : ''}
                             <div class="col-12">
                                 <div class="text-muted small mb-1">Жетоны</div>
                                 <div class="student-tokens-grid">
@@ -610,6 +618,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 <div class="table-info-item"><span class="k">Направление:</span> <span class="v">${escapeHtml(student.direction || '—')}</span></div>
                 ${student.group_degree_label ? `<div class="table-info-item"><span class="k">Тип группы:</span> <span class="v">${escapeHtml(student.group_degree_label)}</span></div>` : ''}
                 <div class="table-info-item"><span class="k">Специализация:</span> <span class="v">${escapeHtml(student.specialization || '—')}</span></div>
+                ${(student.current_workplace || student.current_job_title) ? `
+                <div class="table-info-item" style="grid-column: 1 / -1;"><span class="k">Работа:</span> <span class="v">${[
+                    student.current_workplace ? escapeHtml(student.current_workplace) : '',
+                    student.current_job_title ? escapeHtml(student.current_job_title) : ''
+                ].filter(Boolean).join(' — ')}</span></div>` : ''}
             </div>
         `;
         const charsHtml = (student.characteristics || []).map(c => {
@@ -632,9 +645,11 @@ document.addEventListener('DOMContentLoaded', function() {
             const src = `/static/icons/${encodeURIComponent(t.icon)}`;
             const tip = escapeHtml(t.description || name);
             const alt = escapeHtml(name);
+            const label = escapeHtml(name);
             return `
                 <div class="table-token ${cnt > 0 ? 'has' : 'zero'}" title="${tip}">
                     <img class="table-token-icon" src="${src}" alt="${alt}">
+                    <div class="table-token-label">${label}</div>
                     <div class="table-token-count">×${cnt}</div>
                 </div>
             `;
@@ -1018,6 +1033,15 @@ document.addEventListener('DOMContentLoaded', function() {
     object-fit: contain;
 }
 
+.student-token-label{
+    font-size: 0.65rem;
+    line-height: 1.15;
+    color: #495057;
+    text-align: center;
+    width: 100%;
+    word-break: break-word;
+}
+
 .student-token-count{
     font-size: 0.78rem;
     line-height: 1;
@@ -1120,11 +1144,11 @@ document.addEventListener('DOMContentLoaded', function() {
     grid-template-columns: repeat(3, 1fr);
     gap: 8px;
     justify-items: center;
-    min-width: 160px;
+    min-width: 200px;
 }
 .table-token{
     width: 100%;
-    max-width: 70px;
+    max-width: 88px;
     padding: 8px 6px;
     border-radius: 10px;
     border: 1px solid #eef1f4;
@@ -1138,6 +1162,14 @@ document.addEventListener('DOMContentLoaded', function() {
     width: 26px;
     height: 26px;
     object-fit: contain;
+}
+.table-token-label{
+    font-size: 0.6rem;
+    line-height: 1.1;
+    color: #495057;
+    text-align: center;
+    width: 100%;
+    word-break: break-word;
 }
 .table-token-count{
     font-size: 0.75rem;

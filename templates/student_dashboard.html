@@ -39,7 +39,7 @@
             <h4>{{ profile.first_name }} {{ profile.last_name }}</h4>
             <p class="mb-1">
                 <i class="fas fa-users me-1"></i>
-                Группа: {{ profile.group_name }}
+                Группа: {{ profile.group.name if profile.group else '—' }}
             </p>
             {% if profile.study_form %}
                 <p class="mb-1">
@@ -75,7 +75,7 @@
                     <div class="col-md-6">
                         <p><strong>Имя:</strong> {{ profile.first_name }}</p>
                         <p><strong>Фамилия:</strong> {{ profile.last_name }}</p>
-                        <p><strong>Группа:</strong> {{ profile.group_name }}</p>
+                        <p><strong>Группа:</strong> {{ profile.group.name if profile.group else '—' }}</p>
                     </div>
                     <div class="col-md-6">
                         {% if profile.phone %}
@@ -90,6 +90,19 @@
                         <p><strong>Готовность к командировкам:</strong> {% if profile.ready_for_business_trips %}да{% else %}нет{% endif %}</p>
                     </div>
                 </div>
+                {% if profile.current_workplace or profile.current_job_title %}
+                <div class="row mt-3">
+                    <div class="col-12">
+                        <h6><i class="fas fa-briefcase me-2"></i>Текущая работа</h6>
+                        {% if profile.current_workplace %}
+                            <p class="mb-1 text-muted"><strong>Место работы:</strong> {{ profile.current_workplace }}</p>
+                        {% endif %}
+                        {% if profile.current_job_title %}
+                            <p class="mb-0 text-muted"><strong>Должность:</strong> {{ profile.current_job_title }}</p>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endif %}
                 {% if profile.about_me %}
                 <div class="row mt-3">
                     <div class="col-12">
