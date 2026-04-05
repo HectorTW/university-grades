@@ -32,12 +32,37 @@ class RegistrationForm(FlaskForm):
         Regexp(r'^(student|teacher|employer)$', message='Некорректная роль')
     ])
 
-class LoginForm(FlaskForm):
-    username = StringField('Имя пользователя', validators=[
-        DataRequired(message='Имя пользователя обязательно')
+class RegisterVerifyForm(FlaskForm):
+    code = StringField('Код из письма', validators=[
+        DataRequired(message='Введите код'),
+        Length(min=6, max=6, message='Код должен состоять из 6 цифр'),
+        Regexp(r'^\d{6}$', message='Код должен содержать только цифры')
+    ])
+
+
+class PasswordLoginForm(FlaskForm):
+    login_identifier = StringField('Логин или email', validators=[
+        DataRequired(message='Укажите логин или email')
     ])
     password = PasswordField('Пароль', validators=[
         DataRequired(message='Пароль обязателен')
+    ])
+
+
+class LoginRequestCodeForm(FlaskForm):
+    login_identifier = StringField('Логин или email', validators=[
+        DataRequired(message='Укажите логин или email')
+    ])
+
+
+class LoginVerifyCodeForm(FlaskForm):
+    login_identifier = StringField('Логин или email', validators=[
+        DataRequired(message='Укажите логин или email')
+    ])
+    code = StringField('Код из письма', validators=[
+        DataRequired(message='Введите код'),
+        Length(min=6, max=6, message='Код должен состоять из 6 цифр'),
+        Regexp(r'^\d{6}$', message='Код должен содержать только цифры')
     ])
 
 class StudentProfileForm(FlaskForm):

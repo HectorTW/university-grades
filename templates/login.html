@@ -1,10 +1,10 @@
 {% extends "base.html" %}
 
-{% block title %}Вход - СтартТруд{% endblock %}
+{% block title %}Вход — СтартТруд{% endblock %}
 
 {% block content %}
 <div class="row justify-content-center">
-    <div class="col-md-6 col-lg-4">
+    <div class="col-md-7 col-lg-5">
         <div class="card fade-in">
             <div class="card-header bg-primary text-white text-center">
                 <h4 class="mb-0">
@@ -13,61 +13,126 @@
                 </h4>
             </div>
             <div class="card-body">
-                <form method="POST">
-                    {% if form %}
-                        {{ form.hidden_tag() }}
-                    {% endif %}
-                    <div class="mb-3">
-                        <label for="username" class="form-label">
-                            <i class="fas fa-user me-1"></i>Имя пользователя
-                        </label>
-                        {% if form %}
-                            {{ form.username(class="form-control", id="username") }}
-                            {% if form.username.errors %}
-                                <div class="text-danger small">
-                                    {% for error in form.username.errors %}
-                                        <div>{{ error }}</div>
-                                    {% endfor %}
-                                </div>
-                            {% endif %}
-                        {% else %}
-                            <input type="text" class="form-control" id="username" name="username" required>
-                        {% endif %}
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label for="password" class="form-label">
+                <ul class="nav nav-pills nav-justified mb-4" id="loginTabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link {% if not show_code_step %}active{% endif %}" id="tab-pw-btn" data-bs-toggle="pill" data-bs-target="#tab-pw" type="button" role="tab" aria-controls="tab-pw" aria-selected="{% if not show_code_step %}true{% else %}false{% endif %}">
                             <i class="fas fa-lock me-1"></i>Пароль
-                        </label>
-                        <div class="input-group">
-                            {% if form %}
-                                {{ form.password(class="form-control", id="password") }}
-                            {% else %}
-                                <input type="password" class="form-control" id="password" name="password" required>
-                            {% endif %}
-                            <button class="btn btn-outline-secondary" type="button" onclick="togglePassword('password')">
-                                <i class="fas fa-eye"></i>
-                            </button>
-                        </div>
-                        {% if form and form.password.errors %}
-                            <div class="text-danger small">
-                                {% for error in form.password.errors %}
-                                    <div>{{ error }}</div>
-                                {% endfor %}
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link {% if show_code_step %}active{% endif %}" id="tab-code-btn" data-bs-toggle="pill" data-bs-target="#tab-code" type="button" role="tab" aria-controls="tab-code" aria-selected="{% if show_code_step %}true{% else %}false{% endif %}">
+                            <i class="fas fa-envelope me-1"></i>Код с почты
+                        </button>
+                    </li>
+                </ul>
+
+                <div class="tab-content" id="loginTabsContent">
+                    <div class="tab-pane fade {% if not show_code_step %}show active{% endif %}" id="tab-pw" role="tabpanel" aria-labelledby="tab-pw-btn">
+                        <form method="POST" action="{{ url_for('login') }}">
+                            {{ pw_form.hidden_tag() }}
+                            <div class="mb-3">
+                                <label for="pw_login_identifier" class="form-label">
+                                    <i class="fas fa-user me-1"></i>Логин или email
+                                </label>
+                                {{ pw_form.login_identifier(class="form-control", id="pw_login_identifier", autocomplete="username") }}
+                                {% if pw_form.login_identifier.errors %}
+                                    <div class="text-danger small">
+                                        {% for error in pw_form.login_identifier.errors %}
+                                            <div>{{ error }}</div>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
                             </div>
+                            <div class="mb-3">
+                                <label for="pw_password" class="form-label">
+                                    <i class="fas fa-lock me-1"></i>Пароль
+                                </label>
+                                <div class="input-group">
+                                    {{ pw_form.password(class="form-control", id="pw_password", autocomplete="current-password") }}
+                                    <button class="btn btn-outline-secondary" type="button" onclick="togglePassword('pw_password')">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                </div>
+                                {% if pw_form.password.errors %}
+                                    <div class="text-danger small">
+                                        {% for error in pw_form.password.errors %}
+                                            <div>{{ error }}</div>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            <div class="d-grid">
+                                <button type="submit" class="btn btn-primary btn-lg">
+                                    <i class="fas fa-sign-in-alt me-2"></i>Войти
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <div class="tab-pane fade {% if show_code_step %}show active{% endif %}" id="tab-code" role="tabpanel" aria-labelledby="tab-code-btn">
+                        {% if show_code_step %}
+                            <p class="small text-muted mb-3">
+                                Код отправлен на email, указанный при регистрации.
+                                <a href="{{ url_for('login', reset_code=1) }}">Указать другой логин/email</a>
+                            </p>
+                            <form method="POST" action="{{ url_for('login_verify_code') }}">
+                                {{ verify_form.hidden_tag() }}
+                                <div class="mb-3">
+                                    <label for="vc_login_identifier" class="form-label">Логин или email</label>
+                                    {{ verify_form.login_identifier(class="form-control", id="vc_login_identifier", autocomplete="username") }}
+                                    {% if verify_form.login_identifier.errors %}
+                                        <div class="text-danger small">
+                                            {% for error in verify_form.login_identifier.errors %}
+                                                <div>{{ error }}</div>
+                                            {% endfor %}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                                <div class="mb-3">
+                                    <label for="vc_code" class="form-label">Код из письма</label>
+                                    {{ verify_form.code(class="form-control form-control-lg text-center", id="vc_code", autocomplete="one-time-code", maxlength="6", inputmode="numeric", placeholder="000000") }}
+                                    {% if verify_form.code.errors %}
+                                        <div class="text-danger small">
+                                            {% for error in verify_form.code.errors %}
+                                                <div>{{ error }}</div>
+                                            {% endfor %}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                                <div class="d-grid">
+                                    <button type="submit" class="btn btn-primary btn-lg">
+                                        <i class="fas fa-sign-in-alt me-2"></i>Войти по коду
+                                    </button>
+                                </div>
+                            </form>
+                        {% else %}
+                            <p class="small text-muted mb-3">Введите логин или email — мы отправим на почту цифровой код для входа.</p>
+                            <form method="POST" action="{{ url_for('login_request_code') }}">
+                                {{ req_form.hidden_tag() }}
+                                <div class="mb-3">
+                                    <label for="req_login_identifier" class="form-label">Логин или email</label>
+                                    {{ req_form.login_identifier(class="form-control", id="req_login_identifier", autocomplete="username") }}
+                                    {% if req_form.login_identifier.errors %}
+                                        <div class="text-danger small">
+                                            {% for error in req_form.login_identifier.errors %}
+                                                <div>{{ error }}</div>
+                                            {% endfor %}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                                <div class="d-grid">
+                                    <button type="submit" class="btn btn-outline-primary btn-lg">
+                                        <i class="fas fa-paper-plane me-2"></i>Отправить код
+                                    </button>
+                                </div>
+                            </form>
                         {% endif %}
                     </div>
-                    
-                    <div class="d-grid">
-                        <button type="submit" class="btn btn-primary btn-lg">
-                            <i class="fas fa-sign-in-alt me-2"></i>Войти
-                        </button>
-                    </div>
-                </form>
+                </div>
             </div>
             <div class="card-footer text-center">
                 <p class="mb-0">
-                    Нет аккаунта? 
+                    Нет аккаунта?
                     <a href="{{ url_for('register') }}" class="text-decoration-none">
                         Зарегистрироваться
                     </a>

@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+
+{% block title %}Подтверждение email — СтартТруд{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6 col-lg-5">
+        <div class="card fade-in">
+            <div class="card-header bg-success text-white text-center">
+                <h4 class="mb-0">
+                    <i class="fas fa-envelope-circle-check me-2"></i>
+                    Подтверждение email
+                </h4>
+            </div>
+            <div class="card-body">
+                <p class="text-muted">
+                    Мы отправили 6-значный код на <strong>{{ email_masked }}</strong>.
+                    Введите его ниже, чтобы завершить регистрацию.
+                </p>
+                <form method="POST" action="{{ url_for('register_verify', token=token) }}">
+                    {{ form.hidden_tag() }}
+                    <div class="mb-3">
+                        <label for="code" class="form-label">
+                            <i class="fas fa-key me-1"></i>Код из письма
+                        </label>
+                        {{ form.code(class="form-control form-control-lg text-center", id="code", autocomplete="one-time-code", maxlength="6", placeholder="000000", inputmode="numeric", pattern="[0-9]*") }}
+                        {% if form.code.errors %}
+                            <div class="text-danger small mt-1">
+                                {% for error in form.code.errors %}
+                                    <div>{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-success btn-lg">
+                            <i class="fas fa-check me-2"></i>Подтвердить
+                        </button>
+                        <a href="{{ url_for('register') }}" class="btn btn-outline-secondary">
+                            Начать регистрацию заново
+                        </a>
+                    </div>
+                </form>
+            </div>
+            <div class="card-footer text-center">
+                <p class="mb-0 small text-muted">Код действует ограниченное время. Проверьте папку «Спам».</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

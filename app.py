@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, send_from_directory
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, send_from_directory, session
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
@@ -15,7 +15,17 @@ import uuid
 import logging
 from logging.handlers import RotatingFileHandler
 from dotenv import load_dotenv
-from forms import RegistrationForm, LoginForm, StudentProfileForm, EmployerProfileForm
+from forms import (
+    RegistrationForm,
+    RegisterVerifyForm,
+    PasswordLoginForm,
+    LoginRequestCodeForm,
+    LoginVerifyCodeForm,
+    StudentProfileForm,
+    EmployerProfileForm,
+)
+from mail import send_email, is_smtp_configured
+from otp_utils import generate_digit_code, hash_otp, verify_otp
 from schemas import SubmitGradesSchema, InvitationSchema
 from tokens import TOKEN_CATALOG, TOKEN_TYPES
 from marshmallow import ValidationError
@@ -49,6 +59,9 @@ session_cookie_secure_default = 'True' if IS_PRODUCTION else 'False'
 app.config['SESSION_COOKIE_SECURE'] = os.getenv('SESSION_COOKIE_SECURE', session_cookie_secure_default).lower() == 'true'
 app.config['SESSION_COOKIE_HTTPONLY'] = os.getenv('SESSION_COOKIE_HTTPONLY', 'True').lower() == 'true'
 app.config['SESSION_COOKIE_SAMESITE'] = os.getenv('SESSION_COOKIE_SAMESITE', 'Lax')
+
+# Одноразовые коды (регистрация и вход по email)
+OTP_EXPIRE_MINUTES = int(os.getenv('OTP_EXPIRE_MINUTES', '15'))
 
 # Создаем папку для загрузок
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
@@ -245,6 +258,45 @@ class TokenAward(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     subject = db.relationship('Subject', backref='token_awards')
 
+
+class PendingRegistration(db.Model):
+    """Незавершённая регистрация до ввода кода из письма."""
+    id = db.Column(db.Integer, primary_key=True)
+    token = db.Column(db.String(36), unique=True, nullable=False, index=True)
+    email = db.Column(db.String(120), unique=True, nullable=False, index=True)
+    username = db.Column(db.String(80), nullable=False)
+    password_hash = db.Column(db.String(120), nullable=False)
+    role = db.Column(db.String(20), nullable=False)
+    code_hash = db.Column(db.String(64), nullable=False)
+    expires_at = db.Column(db.DateTime, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+
+class EmailLoginCode(db.Model):
+    """Одноразовый код для входа по email."""
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False, index=True)
+    code_hash = db.Column(db.String(64), nullable=False)
+    expires_at = db.Column(db.DateTime, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    user = db.relationship('User', backref=db.backref('email_login_codes', lazy=True))
+
+
+def normalize_email_addr(value):
+    return (value or '').strip().lower()
+
+
+def resolve_user_by_login_or_email(identifier):
+    from sqlalchemy import func
+    s = (identifier or '').strip()
+    if not s:
+        return None
+    if '@' in s:
+        e = normalize_email_addr(s)
+        return User.query.filter(func.lower(User.email) == e).first()
+    return User.query.filter_by(username=s).first()
+
+
 @login_manager.user_loader
 def load_user(user_id):
     return User.query.get(int(user_id))
@@ -387,33 +439,61 @@ def register():
         form.role.data = selected_role
 
     if form.validate_on_submit():
-        username = form.username.data
-        email = form.email.data
+        username = form.username.data.strip()
+        email = normalize_email_addr(form.email.data)
         password = form.password.data
         role = form.role.data
-        
+
         if User.query.filter_by(username=username).first():
             flash('Пользователь с таким именем уже существует')
             return render_template('register.html', form=form, selected_role=role)
-        
+
         if User.query.filter_by(email=email).first():
             flash('Пользователь с таким email уже существует')
             return render_template('register.html', form=form, selected_role=role)
-        
-        user = User(
-            username=username,
+
+        PendingRegistration.query.filter(PendingRegistration.email == email).delete(synchronize_session=False)
+        db.session.commit()
+
+        code = generate_digit_code()
+        code_hash = hash_otp(app.config['SECRET_KEY'], code)
+        token = str(uuid.uuid4())
+        expires = datetime.utcnow() + timedelta(minutes=OTP_EXPIRE_MINUTES)
+
+        pending = PendingRegistration(
+            token=token,
             email=email,
+            username=username,
             password_hash=generate_password_hash(password),
             role=role,
-            is_approved=(role == 'student')  # Студенты одобряются автоматически, остальные требуют одобрения
+            code_hash=code_hash,
+            expires_at=expires,
         )
-        
-        db.session.add(user)
+        db.session.add(pending)
         db.session.commit()
-        
-        app.logger.info(f'New user registered: {username} (role: {role}) from IP: {request.remote_addr}')
-        flash('Регистрация успешна! Ожидайте одобрения администратора.')
-        return redirect(url_for('login'))
+
+        subject = 'Код подтверждения регистрации — СтартТруд'
+        body = (
+            f'Здравствуйте!\n\nВаш код подтверждения регистрации: {code}\n\n'
+            f'Код действителен {OTP_EXPIRE_MINUTES} минут. Если вы не регистрировались, проигнорируйте это письмо.'
+        )
+        sent = send_email(subject, body, email)
+
+        if is_smtp_configured() and not sent:
+            db.session.delete(pending)
+            db.session.commit()
+            flash('Не удалось отправить письмо. Попробуйте позже или проверьте настройки почты на сервере.')
+            return render_template('register.html', form=form, selected_role=role)
+
+        if not sent:
+            app.logger.warning('MAIL_SERVER не задан: код регистрации для %s: %s', email, code)
+            flash(
+                'Почта сервера не настроена: письмо не отправлено. '
+                'В режиме разработки код записан в журнал сервера.'
+            )
+
+        app.logger.info(f'Registration pending verification: {username} ({email}), role={role} from IP: {request.remote_addr}')
+        return redirect(url_for('register_verify', token=token))
     
     # Отображаем ошибки валидации
     if form.errors:
@@ -423,29 +503,202 @@ def register():
     
     return render_template('register.html', form=form, selected_role=selected_role)
 
-@app.route('/login', methods=['GET', 'POST'])
-@limiter.limit("5 per minute")
-def login():
-    form = LoginForm()
-    
+
+@app.route('/register/verify/<token>', methods=['GET', 'POST'])
+@limiter.limit("30 per minute")
+def register_verify(token):
+    pending = PendingRegistration.query.filter_by(token=token).first()
+    if not pending or pending.expires_at < datetime.utcnow():
+        flash('Ссылка недействительна или срок кода истёк. Зарегистрируйтесь снова.')
+        return redirect(url_for('register'))
+
+    form = RegisterVerifyForm()
     if form.validate_on_submit():
-        username = form.username.data
-        password = form.password.data
-        user = User.query.filter_by(username=username).first()
-        
+        if not verify_otp(app.config['SECRET_KEY'], form.code.data, pending.code_hash):
+            flash('Неверный код')
+            return render_template(
+                'register_verify.html',
+                form=form,
+                email_masked=pending.email,
+                token=token,
+            )
+
+        from sqlalchemy import or_
+
+        if User.query.filter(
+            or_(User.username == pending.username, User.email == pending.email)
+        ).first():
+            db.session.delete(pending)
+            db.session.commit()
+            flash('Аккаунт уже существует. Войдите.')
+            return redirect(url_for('login'))
+
+        user = User(
+            username=pending.username,
+            email=pending.email,
+            password_hash=pending.password_hash,
+            role=pending.role,
+            is_approved=(pending.role == 'student'),
+        )
+        db.session.delete(pending)
+        db.session.add(user)
+        db.session.commit()
+
+        app.logger.info(
+            f'New user verified and registered: {user.username} (role: {user.role}) from IP: {request.remote_addr}'
+        )
+        if user.role == 'student':
+            flash('Регистрация подтверждена! Теперь вы можете войти.')
+        else:
+            flash('Регистрация подтверждена! Ожидайте одобрения администратора, затем войдите.')
+        return redirect(url_for('login'))
+
+    if form.errors:
+        for field, errors in form.errors.items():
+            for error in errors:
+                flash(f'{getattr(form, field).label.text}: {error}')
+
+    return render_template(
+        'register_verify.html',
+        form=form,
+        email_masked=pending.email,
+        token=token,
+    )
+
+
+@app.route('/login', methods=['GET', 'POST'])
+@limiter.limit("15 per minute")
+def login():
+    if request.args.get('reset_code'):
+        session.pop('login_code_sent_for', None)
+        return redirect(url_for('login'))
+
+    pw_form = PasswordLoginForm()
+    req_form = LoginRequestCodeForm()
+    verify_form = LoginVerifyCodeForm()
+
+    if session.get('login_code_sent_for'):
+        verify_form.login_identifier.data = session['login_code_sent_for']
+
+    if pw_form.validate_on_submit():
+        ident = pw_form.login_identifier.data.strip()
+        password = pw_form.password.data
+        user = resolve_user_by_login_or_email(ident)
+
         if user and check_password_hash(user.password_hash, password):
             if user.is_approved:
+                session.pop('login_code_sent_for', None)
                 login_user(user, remember=False)
-                app.logger.info(f'User logged in: {username} from IP: {request.remote_addr}')
+                app.logger.info(f'User logged in (password): {user.username} from IP: {request.remote_addr}')
                 return redirect(url_for('index'))
-            else:
-                app.logger.warning(f'Login attempt for unapproved user: {username} from IP: {request.remote_addr}')
-                flash('Ваш аккаунт еще не одобрен администратором')
+            app.logger.warning(
+                f'Login attempt for unapproved user: {user.username} from IP: {request.remote_addr}'
+            )
+            flash('Ваш аккаунт еще не одобрен администратором')
         else:
-            app.logger.warning(f'Failed login attempt for username: {username} from IP: {request.remote_addr}')
-            flash('Неверное имя пользователя или пароль')
-    
-    return render_template('login.html', form=form)
+            app.logger.warning(f'Failed password login for: {ident} from IP: {request.remote_addr}')
+            flash('Неверный логин/email или пароль')
+
+    if pw_form.errors:
+        for field, errors in pw_form.errors.items():
+            for error in errors:
+                flash(f'{getattr(pw_form, field).label.text}: {error}')
+
+    return render_template(
+        'login.html',
+        pw_form=pw_form,
+        req_form=req_form,
+        verify_form=verify_form,
+        show_code_step=bool(session.get('login_code_sent_for')),
+    )
+
+
+@app.route('/login/request-code', methods=['POST'])
+@limiter.limit('5 per minute')
+def login_request_code():
+    form = LoginRequestCodeForm()
+    if not form.validate_on_submit():
+        for field, errors in form.errors.items():
+            for error in errors:
+                flash(f'{getattr(form, field).label.text}: {error}')
+        return redirect(url_for('login'))
+
+    ident = form.login_identifier.data.strip()
+    user = resolve_user_by_login_or_email(ident)
+    if not user:
+        flash('Пользователь с таким логином или email не найден')
+        return redirect(url_for('login'))
+
+    EmailLoginCode.query.filter_by(user_id=user.id).delete(synchronize_session=False)
+    code = generate_digit_code()
+    code_hash = hash_otp(app.config['SECRET_KEY'], code)
+    expires = datetime.utcnow() + timedelta(minutes=OTP_EXPIRE_MINUTES)
+    row = EmailLoginCode(user_id=user.id, code_hash=code_hash, expires_at=expires)
+    db.session.add(row)
+    db.session.commit()
+
+    subject = 'Код входа — СтартТруд'
+    body = (
+        f'Здравствуйте!\n\nВаш код для входа: {code}\n\n'
+        f'Код действителен {OTP_EXPIRE_MINUTES} минут. Если вы не запрашивали вход, смените пароль.'
+    )
+    sent = send_email(subject, body, user.email)
+
+    if is_smtp_configured() and not sent:
+        db.session.delete(row)
+        db.session.commit()
+        flash('Не удалось отправить письмо. Попробуйте позже.')
+        return redirect(url_for('login'))
+
+    if not sent:
+        app.logger.warning('MAIL_SERVER не задан: код входа для %s: %s', user.email, code)
+        flash('Почта сервера не настроена: код записан в журнал сервера (режим разработки).')
+
+    session['login_code_sent_for'] = ident
+    flash('Код отправлен на email, указанный при регистрации.')
+    return redirect(url_for('login'))
+
+
+@app.route('/login/verify-code', methods=['POST'])
+@limiter.limit('15 per minute')
+def login_verify_code():
+    form = LoginVerifyCodeForm()
+    if not form.validate_on_submit():
+        for field, errors in form.errors.items():
+            for error in errors:
+                flash(f'{getattr(form, field).label.text}: {error}')
+        return redirect(url_for('login'))
+
+    ident = form.login_identifier.data.strip()
+    user = resolve_user_by_login_or_email(ident)
+    if not user:
+        flash('Пользователь не найден')
+        return redirect(url_for('login'))
+
+    row = (
+        EmailLoginCode.query.filter(
+            EmailLoginCode.user_id == user.id,
+            EmailLoginCode.expires_at >= datetime.utcnow(),
+        )
+        .order_by(EmailLoginCode.created_at.desc())
+        .first()
+    )
+    if not row or not verify_otp(app.config['SECRET_KEY'], form.code.data, row.code_hash):
+        flash('Неверный или просроченный код')
+        return redirect(url_for('login'))
+
+    if not user.is_approved:
+        db.session.delete(row)
+        db.session.commit()
+        flash('Ваш аккаунт еще не одобрен администратором')
+        return redirect(url_for('login'))
+
+    db.session.delete(row)
+    db.session.commit()
+    session.pop('login_code_sent_for', None)
+    login_user(user, remember=False)
+    app.logger.info(f'User logged in (email code): {user.username} from IP: {request.remote_addr}')
+    return redirect(url_for('index'))
 
 @app.route('/logout', methods=['POST'])
 @login_required
