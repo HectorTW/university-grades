@@ -178,6 +178,20 @@ class Specialization(db.Model):
     name = db.Column(db.String(100), nullable=False, unique=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
+student_profile_desired_directions = db.Table(
+    'student_profile_desired_directions',
+    db.Column('student_profile_id', db.Integer, db.ForeignKey('student_profile.id', ondelete='CASCADE'), nullable=False),
+    db.Column('study_direction_id', db.Integer, db.ForeignKey('study_direction.id', ondelete='CASCADE'), nullable=False),
+    db.UniqueConstraint('student_profile_id', 'study_direction_id', name='uq_student_profile_desired_direction'),
+)
+
+student_profile_desired_specializations = db.Table(
+    'student_profile_desired_specializations',
+    db.Column('student_profile_id', db.Integer, db.ForeignKey('student_profile.id', ondelete='CASCADE'), nullable=False),
+    db.Column('specialization_id', db.Integer, db.ForeignKey('specialization.id', ondelete='CASCADE'), nullable=False),
+    db.UniqueConstraint('student_profile_id', 'specialization_id', name='uq_student_profile_desired_specialization'),
+)
+
 GROUP_DEGREE_BACHELOR = 'bachelor'
 GROUP_DEGREE_MASTER = 'master'
 GROUP_DEGREE_TYPES = (GROUP_DEGREE_BACHELOR, GROUP_DEGREE_MASTER)
@@ -271,6 +285,16 @@ class StudentProfile(db.Model):
     group = db.relationship('Group', backref='students')
     desired_direction = db.relationship('StudyDirection', backref='students')
     desired_specialization = db.relationship('Specialization', backref='students')
+    desired_directions = db.relationship(
+        'StudyDirection',
+        secondary=student_profile_desired_directions,
+        lazy='select',
+    )
+    desired_specializations = db.relationship(
+        'Specialization',
+        secondary=student_profile_desired_specializations,
+        lazy='select',
+    )
 
 class Grade(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -877,10 +901,47 @@ def student_profile():
             profile.group_id = form.group_id.data
         
         # Обработка направления и специализации
-        if form.desired_direction_id.data:
-            profile.desired_direction_id = form.desired_direction_id.data
-        if form.desired_specialization_id.data:
-            profile.desired_specialization_id = form.desired_specialization_id.data
+        raw_direction_ids = request.form.getlist('desired_direction_ids') or []
+        raw_specialization_ids = request.form.getlist('desired_specialization_ids') or []
+
+        def _parse_int_list(values):
+            result = []
+            for v in values:
+                try:
+                    n = int(str(v).strip())
+                except (ValueError, TypeError):
+                    continue
+                if n > 0:
+                    result.append(n)
+            # dedupe, keep order
+            return list(dict.fromkeys(result))
+
+        desired_direction_ids = _parse_int_list(raw_direction_ids)
+        desired_specialization_ids = _parse_int_list(raw_specialization_ids)
+
+        # Мультивыбор: сохраняем в связующие таблицы.
+        # Backwards compatibility: legacy FK поля оставляем и синхронизируем первым выбранным значением.
+        if desired_direction_ids:
+            directions_by_id = {
+                d.id: d for d in StudyDirection.query.filter(StudyDirection.id.in_(desired_direction_ids)).all()
+            }
+            profile.desired_directions = [directions_by_id[i] for i in desired_direction_ids if i in directions_by_id]
+            profile.desired_direction_id = profile.desired_directions[0].id if profile.desired_directions else None
+        else:
+            profile.desired_directions = []
+            profile.desired_direction_id = None
+
+        if desired_specialization_ids:
+            specs_by_id = {
+                s.id: s for s in Specialization.query.filter(Specialization.id.in_(desired_specialization_ids)).all()
+            }
+            profile.desired_specializations = [specs_by_id[i] for i in desired_specialization_ids if i in specs_by_id]
+            profile.desired_specialization_id = (
+                profile.desired_specializations[0].id if profile.desired_specializations else None
+            )
+        else:
+            profile.desired_specializations = []
+            profile.desired_specialization_id = None
         
         profile.birth_date = form.birth_date.data if form.birth_date.data else None
         
@@ -938,6 +999,8 @@ def student_profile():
     
     # Заполняем форму текущими данными
     profile = current_user.student_profile
+    selected_direction_ids = []
+    selected_specialization_ids = []
     if profile:
         form.first_name.data = profile.first_name
         form.last_name.data = profile.last_name
@@ -952,6 +1015,21 @@ def student_profile():
         form.birth_date.data = profile.birth_date
         form.current_workplace.data = profile.current_workplace
         form.current_job_title.data = profile.current_job_title
+
+        # Для UI (чекбоксы): если есть новые связи — показываем их, иначе fallback на legacy FK.
+        try:
+            selected_direction_ids = [d.id for d in (profile.desired_directions or [])]
+        except Exception:
+            selected_direction_ids = []
+        if not selected_direction_ids and profile.desired_direction_id:
+            selected_direction_ids = [profile.desired_direction_id]
+
+        try:
+            selected_specialization_ids = [s.id for s in (profile.desired_specializations or [])]
+        except Exception:
+            selected_specialization_ids = []
+        if not selected_specialization_ids and profile.desired_specialization_id:
+            selected_specialization_ids = [profile.desired_specialization_id]
     
     groups = Group.query.all()
     directions = StudyDirection.query.all()
@@ -963,6 +1041,8 @@ def student_profile():
         groups=groups,
         directions=directions,
         specializations=specializations,
+        selected_direction_ids=selected_direction_ids,
+        selected_specialization_ids=selected_specialization_ids,
         max_profile_photo_bytes=MAX_PROFILE_PHOTO_BYTES,
         max_profile_photo_label=format_file_size_ru(MAX_PROFILE_PHOTO_BYTES),
     )
@@ -1587,6 +1667,34 @@ def delete_specialization(specialization_id):
     db.session.commit()
     
     flash(f'Специализация "{specialization.name}" удалена')
+    return redirect(url_for('admin_specializations'))
+
+
+@app.route('/admin/specializations/rename/<int:specialization_id>', methods=['POST'])
+@login_required
+def rename_specialization(specialization_id):
+    if current_user.role != 'admin':
+        flash('Доступ запрещен')
+        return redirect(url_for('index'))
+
+    specialization = Specialization.query.get_or_404(specialization_id)
+    new_name = (request.form.get('name') or '').strip()
+    if not new_name:
+        flash('Название специализации не может быть пустым')
+        return redirect(url_for('admin_specializations'))
+
+    exists = (
+        Specialization.query
+        .filter(Specialization.name == new_name, Specialization.id != specialization.id)
+        .first()
+    )
+    if exists:
+        flash(f'Специализация "{new_name}" уже существует')
+        return redirect(url_for('admin_specializations'))
+
+    specialization.name = new_name
+    db.session.commit()
+    flash(f'Специализация переименована в "{new_name}"')
     return redirect(url_for('admin_specializations'))
 
 @app.route('/admin/groups')

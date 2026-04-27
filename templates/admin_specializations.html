@@ -75,13 +75,32 @@
                                         </small>
                                     </td>
                                     <td>
-                                        <form method="POST" action="{{ url_for('delete_specialization', specialization_id=specialization.id) }}" class="d-inline"
-                                              onsubmit="return confirm('Удалить специализацию \"{{ specialization.name }}\"?')">
-                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-                                            <button type="submit" class="btn btn-danger btn-sm">
-                                                <i class="fas fa-trash me-1"></i>Удалить
-                                            </button>
-                                        </form>
+                                        <div class="d-flex align-items-center gap-2 flex-nowrap">
+                                            <form method="POST" action="{{ url_for('delete_specialization', specialization_id=specialization.id) }}"
+                                                  class="m-0"
+                                                  onsubmit="return confirm('Удалить специализацию \"{{ specialization.name }}\"?')">
+                                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                                <button type="submit" class="btn btn-danger btn-sm">
+                                                    <i class="fas fa-trash me-1"></i>Удалить
+                                                </button>
+                                            </form>
+                                            <form method="POST" action="{{ url_for('rename_specialization', specialization_id=specialization.id) }}" class="m-0 flex-grow-1">
+                                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                                <div class="input-group input-group-sm flex-nowrap ms-auto" style="width: 220px; max-width: 220px;">
+                                                    <input
+                                                        type="text"
+                                                        class="form-control"
+                                                        name="name"
+                                                        value="{{ specialization.name }}"
+                                                        aria-label="Новое название специализации"
+                                                        required
+                                                    >
+                                                    <button type="submit" class="btn btn-outline-primary">
+                                                        <i class="fas fa-pen me-1"></i>Сохранить
+                                                    </button>
+                                                </div>
+                                            </form>
+                                        </div>
                                     </td>
                                 </tr>
                                 {% endfor %}

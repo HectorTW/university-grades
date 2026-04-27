@@ -118,33 +118,55 @@
                     
                     <div class="row">
                         <div class="col-md-6 mb-3">
-                            <label for="desired_direction_id" class="form-label">
+                            <label class="form-label">
                                 <i class="fas fa-compass me-1"></i>Желаемое направление
                             </label>
-                            <select class="form-select" id="desired_direction_id" name="desired_direction_id">
-                                <option value="">Выберите направление</option>
+                            <div class="border rounded p-2 desired-multiselect" role="group" aria-label="Желаемое направление">
                                 {% for direction in directions %}
-                                    <option value="{{ direction.id }}" 
-                                            {% if profile and profile.desired_direction_id == direction.id %}selected{% endif %}>
+                                <div class="form-check">
+                                    <input
+                                        class="form-check-input"
+                                        type="checkbox"
+                                        id="desired_direction_{{ direction.id }}"
+                                        name="desired_direction_ids"
+                                        value="{{ direction.id }}"
+                                        {% if selected_direction_ids and (direction.id in selected_direction_ids) %}checked{% endif %}
+                                    >
+                                    <label class="form-check-label" for="desired_direction_{{ direction.id }}">
                                         {{ direction.name }}
-                                    </option>
+                                    </label>
+                                </div>
                                 {% endfor %}
-                            </select>
+                                {% if not directions %}
+                                <div class="text-muted small">Список направлений пока пуст.</div>
+                                {% endif %}
+                            </div>
                         </div>
                         
                         <div class="col-md-6 mb-3">
-                            <label for="desired_specialization_id" class="form-label">
+                            <label class="form-label">
                                 <i class="fas fa-tools me-1"></i>Желаемая специализация
                             </label>
-                            <select class="form-select" id="desired_specialization_id" name="desired_specialization_id">
-                                <option value="">Выберите специализацию</option>
+                            <div class="border rounded p-2 desired-multiselect" role="group" aria-label="Желаемая специализация">
                                 {% for specialization in specializations %}
-                                    <option value="{{ specialization.id }}" 
-                                            {% if profile and profile.desired_specialization_id == specialization.id %}selected{% endif %}>
+                                <div class="form-check">
+                                    <input
+                                        class="form-check-input"
+                                        type="checkbox"
+                                        id="desired_specialization_{{ specialization.id }}"
+                                        name="desired_specialization_ids"
+                                        value="{{ specialization.id }}"
+                                        {% if selected_specialization_ids and (specialization.id in selected_specialization_ids) %}checked{% endif %}
+                                    >
+                                    <label class="form-check-label" for="desired_specialization_{{ specialization.id }}">
                                         {{ specialization.name }}
-                                    </option>
+                                    </label>
+                                </div>
                                 {% endfor %}
-                            </select>
+                                {% if not specializations %}
+                                <div class="text-muted small">Список специализаций пока пуст.</div>
+                                {% endif %}
+                            </div>
                         </div>
                     </div>
                     
@@ -512,6 +534,12 @@
 body > .tooltip .tooltip-inner {
     max-width: min(280px, 92vw);
     text-align: left;
+}
+
+.desired-multiselect {
+    max-height: 220px;
+    overflow: auto;
+    background: #fff;
 }
 </style>
 {% endblock %}
