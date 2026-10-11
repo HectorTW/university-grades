@@ -1,7 +1,12 @@
 /* Основные стили */
+html {
+    overflow-x: hidden;
+}
+
 body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     background-color: #f8f9fa;
+    overflow-x: hidden;
 }
 
 .navbar-brand {
@@ -155,10 +160,11 @@ body {
     margin-bottom: 10px;
 }
 
-/* Адаптивность */
+/* Горизонтальные поля страницы: gutter Bootstrap + safe-area, без «прилипания» к краям */
 @media (max-width: 768px) {
     .container {
-        padding: 0 15px;
+        padding-left: max(1.25rem, calc(env(safe-area-inset-left, 0px) + 1.25rem)) !important;
+        padding-right: max(1.25rem, calc(env(safe-area-inset-right, 0px) + 1.25rem)) !important;
     }
     
     .card {
@@ -254,7 +260,26 @@ body {
 
 @media (max-width: 576px) {
     .container {
-        padding: 0 10px;
+        padding-left: max(1.25rem, calc(env(safe-area-inset-left, 0px) + 1.25rem)) !important;
+        padding-right: max(1.25rem, calc(env(safe-area-inset-right, 0px) + 1.25rem)) !important;
+    }
+
+    main.container {
+        padding-top: 1.25rem;
+        padding-bottom: 1.25rem;
+    }
+
+    .jumbotron {
+        padding-left: 1.25rem !important;
+        padding-right: 1.25rem !important;
+        margin-left: 0;
+        margin-right: 0;
+    }
+
+    .card-header,
+    .card-footer {
+        padding-left: 1.25rem;
+        padding-right: 1.25rem;
     }
     
     .card {
@@ -371,9 +396,9 @@ body {
         padding: 0.75rem 1.5rem !important;
     }
     
-    /* Мобильные карточки */
+    /* Мобильные карточки: кнопки и поля не прилипают к краям карточки */
     .card-body {
-        padding: 1rem !important;
+        padding: 1.25rem !important;
     }
     
     .p-3 {
